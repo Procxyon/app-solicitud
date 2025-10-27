@@ -250,3 +250,30 @@ header {
 .modal-close-btn:hover {
   background-color: #0056b3;
 }
+
+/* --- ESTILOS PARA LA FILA DE 3 CAMPOS --- */
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap; /* Permite que se apilen en móviles */
+  gap: 15px;      /* Espacio entre los campos */
+}
+
+/* Cada campo en la fila */
+.form-group {
+  flex: 1; /* Hace que crezcan para llenar el espacio */
+  min-width: 150px; /* Ancho mínimo antes de apilarse */
+  margin-bottom: 0 !important; /* Anula el margen de 15px de ".formulario-prestamo div" */
+}
+
+/* * Sobreescribe el estilo general para que el input
+ * dentro de un form-group también ocupe el 100%
+ * de su 'form-group' padre.
+ */
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}

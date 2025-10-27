@@ -10,12 +10,10 @@ interface Producto {
   nombre_equipo: string;
 }
 
-// ¡NUEVA INTERFAZ! Para guardar el producto Y la cantidad
 interface SolicitudItem extends Producto {
   cantidad: number;
 }
 
-// Opciones para la búsqueda difusa (sin cambios)
 const fuseOptions = {
   keys: ['nombre_equipo'],
   threshold: 0.4,
@@ -24,11 +22,7 @@ const fuseOptions = {
 
 function App() {
   const [todosLosProductos, setTodosLosProductos] = useState<Producto[]>([])
-  
-  // --- CAMBIO ---
-  // Ahora la lista de solicitud usa la nueva interfaz
   const [listaSolicitud, setListaSolicitud] = useState<SolicitudItem[]>([])
-
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<Producto[]>([])
   const fuse = useMemo(() => new Fuse(todosLosProductos, fuseOptions), [todosLosProductos])
@@ -36,6 +30,10 @@ function App() {
   const [nombrePersona, setNombrePersona] = useState('')
   const [numeroControl, setNumeroControl] = useState('')
   const [integrantes, setIntegrantes] = useState(1)
+  
+  // --- ¡NUEVOS ESTADOS! ---
+  const [materia, setMateria] = useState('')
+  const [grupo, setGrupo] = useState('')
 
   const [terminosUso, setUso] = useState(false)
   const [modalAbierto, setModalAbierto] = useState(false)
@@ -46,20 +44,20 @@ function App() {
   // Carga productos (sin cambios)
   useEffect(() => {
     const fetchProductos = async () => {
-      setLoading(true)
+      setLoading(true);
       try {
-        const response = await fetch(`${API_URL}/api/inventario`)
-        const data = await response.json()
-        setTodosLosProductos(data)
+        const response = await fetch(`${API_URL}/api/inventario`);
+        const data = await response.json();
+        setTodosLosProductos(data);
       } catch (error) {
-        console.error('Error al cargar productos:', error)
+        console.error('Error al cargar productos:', error);
       }
-      setLoading(false)
+      setLoading(false);
     }
     fetchProductos()
   }, []) 
 
-  // Búsqueda (sin cambios)
+  // Funciones de búsqueda y lista (sin cambios)
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchTerm = e.target.value
     setSearchTerm(newSearchTerm)
@@ -71,38 +69,29 @@ function App() {
     setSearchResults(results.slice(0, 5)) 
   }
 
-  // --- CAMBIO ---
-  // Al añadir un item, lo añadimos con cantidad 1
   const handleAddItem = (producto: Producto) => {
     if (!listaSolicitud.find(item => item.id === producto.id)) {
-      // Añade el producto junto con la cantidad
       setListaSolicitud([...listaSolicitud, { ...producto, cantidad: 1 }]) 
     }
     setSearchTerm('')
     setSearchResults([])
   }
 
-  // Quitar de la lista (sin cambios)
   const handleRemoveItem = (productoId: number) => {
     setListaSolicitud(listaSolicitud.filter(item => item.id !== productoId))
   }
 
-  // --- ¡NUEVA FUNCIÓN! ---
-  // Para actualizar la cantidad de un item en la lista
   const handleUpdateCantidad = (id: number, nuevaCantidad: number) => {
-    // Asegurarse de que la cantidad sea al menos 1
     const cantidadValidada = Math.max(1, nuevaCantidad);
-
     setListaSolicitud(listaSolicitud.map(item => 
       item.id === id ? { ...item, cantidad: cantidadValidada } : item
     ));
   };
 
-  // --- CAMBIO EN EL SUBMIT ---
+  // --- FUNCIÓN DE ENVÍO (ACTUALIZADA) ---
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault() 
     
-    // ¡CORRECCIÓN! Añadida la validación de términos de uso
     if (!terminosUso) {
       alert('Debes aceptar el reglamento de uso para poder enviar la solicitud.')
       return
@@ -118,7 +107,6 @@ function App() {
     
     setEnviando(true)
 
-    // El array de promesas ahora lee 'producto.cantidad'
     const solicitudes = listaSolicitud.map(producto => {
       return fetch(`${API_URL}/api/prestamos`, {
         method: 'POST',
@@ -128,7 +116,9 @@ function App() {
           nombre_persona: nombrePersona,
           numero_de_control: numeroControl,
           integrantes: integrantes,
-          cantidad: producto.cantidad // <-- ¡AQUÍ ESTÁ!
+          cantidad: producto.cantidad,
+          materia: materia, // <-- ¡NUEVO!
+          grupo: grupo      // <-- ¡NUEVO!
         }),
       })
     })
@@ -140,12 +130,15 @@ function App() {
 
       alert(`¡Solicitud registrada con éxito para ${listaSolicitud.length} tipo(s) de equipo!`)
       
+      // Limpia el formulario (incluyendo los nuevos campos)
       setListaSolicitud([])
       setNombrePersona('')
       setNumeroControl('')
       setIntegrantes(1)
+      setMateria('') // <-- ¡NUEVO!
+      setGrupo('')   // <-- ¡NUEVO!
       setSearchTerm('')
-      setUso(false) // Resetea el checkbox
+      setUso(false)
 
     } catch (error) {
       console.error('Error en el formulario:', error)
@@ -156,12 +149,10 @@ function App() {
     }
   }
 
-  // --- RENDERIZADO (JSX) ---
   return (
     <div className="App">
       <header>
-        {/* Tus estilos de logo e imagen se conservan */}
-        <img src="/logo.png" alt="Logo de la Aplicación" style={{width: "512px", height: "221px"}} /> 
+        <img src="/logo.png" alt="Logo de la Aplicación" style={{width: "512px", height: "221px"}} />
         <h1>Solicitud de Préstamo de Equipo</h1>
       </header>
       
@@ -172,20 +163,53 @@ function App() {
           
           <fieldset>
             <legend>Datos del Solicitante</legend>
-            {/* Tus campos de Nombre, Control, e Integrantes se conservan */}
             <div>
               <label htmlFor="nombre">Nombre Completo:</label>
-              <input type="text" id="nombre" value={nombrePersona} onChange={(e) => setNombrePersona(e.target.value)} placeholder="Nombre || Apellidos" required />
+              <input type="text" id="nombre" value={nombrePersona} onChange={(e) => setNombrePersona(e.target.value)} placeholder="NOMBRE | APELLIDOS" required />
             </div>
             <div>
               <label htmlFor="control">Número de Control:</label>
-              <input type="text" id="control" value={numeroControl} onChange={(e) => setNumeroControl(e.target.value)} placeholder="Se encuentra en tu credencial" required />
+              <input type="text" id="control" value={numeroControl} onChange={(e) => setNumeroControl(e.target.value)} placeholder="SE ENCUENTRA EN LA PARTE INFERIOR DE SU CREDENCIAL " required />
             </div>
-            <div>
-              <label htmlFor="integrantes">Número de Integrantes (total):</label>
-              <input type="number" id="integrantes" value={integrantes} min="1" onChange={(e) => setIntegrantes(parseInt(e.target.value) || 1)} required />
+            
+            {/* --- ¡NUEVA FILA DE FORMULARIO! --- */}
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="integrantes">Núm. de Integrantes:</label>
+                <input 
+                  type="number" 
+                  id="integrantes"
+                  value={integrantes}
+                  min="1"
+                  onChange={(e) => setIntegrantes(parseInt(e.target.value) || 1)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="materia">Materia (Opcional):</label>
+                <input 
+                  type="text" 
+                  id="materia"
+                  value={materia}
+                  onChange={(e) => setMateria(e.target.value)}
+                  placeholder="Ej. Circuitos Eléctricos"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="grupo">Grupo (Opcional):</label>
+                <input 
+                  type="text" 
+                  id="grupo"
+                  value={grupo}
+                  onChange={(e) => setGrupo(e.target.value)}
+                  placeholder="Ej. 5CV1"
+                />
+              </div>
             </div>
-           {/* Tu checkbox y modal se conservan */}
+            {/* --- FIN DE LA NUEVA FILA --- */}
+
            <div className="terminos-container">
               <input type="checkbox" id="Uso" checked={terminosUso} onChange={(e) => setUso(e.target.checked)} required />
               <label htmlFor="Uso"> 
@@ -213,10 +237,11 @@ function App() {
               </div>
             )}
           </fieldset>
-
+          
+          {/* ... (El fieldset de Equipos a Solicitar y el botón de submit no cambian) ... */}
           <fieldset>
-            <legend>Herramienta / Equipo a Solicitar</legend>
-            {/* Tu búsqueda se conserva */}
+            <legend>Equipos a Solicitar</legend>
+            {/* ... (todo el código de búsqueda y lista de solicitud) ... */}
             <label htmlFor="busqueda">Herramienta / Equipo:</label>
             <input type="text" id="busqueda" value={searchTerm} onChange={handleSearch} placeholder="Escribe el nombre de la herramienta o equipo" />
             <div className="search-results">
@@ -226,10 +251,8 @@ function App() {
                 </button>
               ))}
             </div>
-
-            {/* --- CAMBIO EN LA LISTA DE SOLICITUD --- */}
             <div className="lista-solicitud">
-              <h4>Solicitud:</h4>
+              <h4>Equipos en esta solicitud:</h4>
               {listaSolicitud.length === 0 ? (
                 <p>Aún no has añadido equipos.</p>
               ) : (
@@ -237,24 +260,13 @@ function App() {
                   {listaSolicitud.map((prod) => (
                     <li key={prod.id} className="solicitud-item">
                       <span className="item-name">{prod.nombre_equipo}</span>
-                      
-                      {/* --- ¡NUEVO CONTADOR! --- */}
                       <div className="item-controls">
                         <label htmlFor={`qty-${prod.id}`}>Cantidad:</label>
-                        <input
-                          type="number"
-                          id={`qty-${prod.id}`}
-                          className="item-quantity"
-                          value={prod.cantidad}
-                          min="1"
-                          onChange={(e) => handleUpdateCantidad(prod.id, parseInt(e.target.value) || 1)}
-                        />
+                        <input type="number" id={`qty-${prod.id}`} className="item-quantity" value={prod.cantidad} min="1" onChange={(e) => handleUpdateCantidad(prod.id, parseInt(e.target.value) || 1)} />
                         <button type="button" onClick={() => handleRemoveItem(prod.id)} className="remove-btn">
                           Quitar
                         </button>
                       </div>
-                      {/* --- FIN DEL CONTADOR --- */}
-
                     </li>
                   ))}
                 </ul>
