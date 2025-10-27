@@ -145,7 +145,7 @@ function App() {
   return (
     <div className="App">
       <header>
-        <img src="/logo.png" alt="Logo de la Aplicación" style={{width: "100px", height: "100px"}} />
+        <img src="/logo.png" alt="Logo de la Aplicación" style={{width: "512px", height: "221px"}} />
         <h1>Solicitud de Préstamo de Equipo</h1>
       </header>
       
@@ -193,13 +193,13 @@ function App() {
           {/* --- SELECCIÓN DE EQUIPO (Feature 1 & 2) --- */}
           <fieldset>
             <legend>Equipos a Solicitar</legend>
-            <label htmlFor="busqueda">Buscar equipo (ej: "Osciloscopio", "Caiman", "Multi mtr"):</label>
+            <label htmlFor="busqueda">Herramienta / Equipo:</label>
             <input
               type="text"
               id="busqueda"
               value={searchTerm}
               onChange={handleSearch}
-              placeholder="Escribe el nombre del equipo..."
+              placeholder="Escribe el nombre de la herramienta o equipo"
             />
             {/* --- Resultados de Búsqueda --- */}
             <div className="search-results">
