@@ -1,42 +1,122 @@
-#root {
-  max-width: 1280px;
+/* Estilos generales */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f9;
+  margin: 0;
+  padding: 20px;
+}
+
+.App {
+  max-width: 800px;
   margin: 0 auto;
-  padding: 2rem;
+  background-color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+header {
   text-align: center;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 10px;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Estilos del formulario */
+.formulario-prestamo fieldset {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  padding: 15px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.formulario-prestamo legend {
+  font-weight: bold;
+  color: #333;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.formulario-prestamo div {
+  margin-bottom: 15px;
 }
 
-.card {
-  padding: 2em;
+.formulario-prestamo label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #555;
 }
 
-.read-the-docs {
-  color: #888;
+.formulario-prestamo input[type="text"],
+.formulario-prestamo input[type="number"] {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box; /* Importante para que el padding no rompa el ancho */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* --- Estilos para la búsqueda (Feature 2) --- */
+.search-results {
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-result-item {
+  background-color: #e6f7ff;
+  border: 1px solid #b3e0ff;
+  color: #0056b3;
+  padding: 8px;
+  margin-top: 5px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 4px;
+}
+.search-result-item:hover {
+  background-color: #d0ebff;
+}
+
+/* --- Estilos para la lista (Feature 1) --- */
+.lista-solicitud ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+.lista-solicitud li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background-color: #fafafa;
+  border: 1px solid #eee;
+  margin-bottom: 5px;
+  border-radius: 4px;
+}
+.remove-btn {
+  background-color: #ffcccc;
+  border: none;
+  color: #a00;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.remove-btn:hover {
+  background-color: #ff9999;
+}
+
+/* --- Botón de envío --- */
+.submit-btn {
+  width: 100%;
+  padding: 15px;
+  font-size: 16px;
+  font-weight: bold;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.submit-btn:disabled {
+  background-color: #ccc;
+}
+.submit-btn:not(:disabled):hover {
+  background-color: #218838;
 }

@@ -1,35 +1,50 @@
-import { useState, useEffect } from 'react'
-// Importamos el 'tipo' de FormEvent por separado
+import { useState, useEffect, useMemo } from 'react'
 import type { FormEvent } from 'react'
-import './App.css' // Puedes añadir estilos básicos aquí
+import Fuse from 'fuse.js' // <-- Importamos Fuse.js
+import './App.css' 
 
 // --- ¡IMPORTANTE! ---
-// Pon la URL de tu Worker API (la misma que usaste en la app de admin)
 const API_URL = 'https://api-inventario.dejesus-ramirez-josue.workers.dev' 
 
-// Definición del tipo Producto (para el dropdown)
 interface Producto {
   id: number;
   nombre_equipo: string;
 }
 
-function App() {
-  const [loading, setLoading] = useState(true)
-  const [productos, setProductos] = useState<Producto[]>([])
+// Opciones para la búsqueda difusa (fuzzy search)
+const fuseOptions = {
+  keys: ['nombre_equipo'], // Busca solo por el nombre
+  threshold: 0.4,       // Nivel de tolerancia a typos (0 es perfecto, 1 es todo)
+  includeScore: true
+};
 
-  // Estado para los campos del formulario
-  const [productoId, setProductoId] = useState('')
+function App() {
+  const [todosLosProductos, setTodosLosProductos] = useState<Producto[]>([])
+  
+  // --- Feature 1: Múltiples equipos ---
+  const [listaSolicitud, setListaSolicitud] = useState<Producto[]>([])
+
+  // --- Feature 2: Búsqueda ---
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState<Producto[]>([])
+  const fuse = useMemo(() => new Fuse(todosLosProductos, fuseOptions), [todosLosProductos])
+
+  // --- Feature 3 & 4: Nuevos campos ---
   const [nombrePersona, setNombrePersona] = useState('')
+  const [numeroControl, setNumeroControl] = useState('')
+  const [integrantes, setIntegrantes] = useState(1) // Inicia en 1
+
+  const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
 
-  // Carga los productos del inventario para el dropdown
+  // Carga todos los productos una vez
   useEffect(() => {
     const fetchProductos = async () => {
       setLoading(true)
       try {
         const response = await fetch(`${API_URL}/api/inventario`)
         const data = await response.json()
-        setProductos(data)
+        setTodosLosProductos(data)
       } catch (error) {
         console.error('Error al cargar productos:', error)
         alert('No se pudo cargar la lista de equipos.')
@@ -39,45 +54,89 @@ function App() {
     fetchProductos()
   }, []) 
 
-  // Función para manejar el envío del formulario
+  // --- Feature 2: Función de Búsqueda ---
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSearchTerm = e.target.value
+    setSearchTerm(newSearchTerm)
+    
+    if (newSearchTerm.trim() === '') {
+      setSearchResults([])
+      return
+    }
+    // fuse.search() devuelve { item: Producto, refIndex: number, score: number }
+    const results = fuse.search(newSearchTerm).map(result => result.item)
+    // Mostramos solo los 5 mejores resultados
+    setSearchResults(results.slice(0, 5)) 
+  }
+
+  // --- Feature 1: Añadir a la lista ---
+  const handleAddItem = (producto: Producto) => {
+    // Evita duplicados
+    if (!listaSolicitud.find(item => item.id === producto.id)) {
+      setListaSolicitud([...listaSolicitud, producto])
+    }
+    // Limpia la búsqueda
+    setSearchTerm('')
+    setSearchResults([])
+  }
+
+  // --- Feature 1: Quitar de la lista ---
+  const handleRemoveItem = (productoId: number) => {
+    setListaSolicitud(listaSolicitud.filter(item => item.id !== productoId))
+  }
+
+  // --- Función de Envío Actualizada ---
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault() 
     
-    if (!productoId || !nombrePersona) {
-      alert('Por favor, selecciona un equipo e ingresa tu nombre.')
+    if (listaSolicitud.length === 0) {
+      alert('Debes añadir al menos un equipo a tu solicitud.')
+      return
+    }
+    if (!nombrePersona || !numeroControl || !integrantes) {
+      alert('Por favor, llena tu nombre, número de control y número de integrantes.')
       return
     }
     
     setEnviando(true)
 
-    try {
-      const response = await fetch(`${API_URL}/api/prestamos`, {
+    // Creamos un array de "promesas" de fetch
+    const solicitudes = listaSolicitud.map(producto => {
+      return fetch(`${API_URL}/api/prestamos`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          producto_id: parseInt(productoId), 
+          producto_id: producto.id, 
           nombre_persona: nombrePersona,
+          numero_de_control: numeroControl, // <-- Nuevo
+          integrantes: integrantes          // <-- Nuevo
         }),
       })
+    })
 
-      if (!response.ok) {
-        throw new Error('No se pudo registrar la solicitud')
+    try {
+      // Promise.all espera a que TODAS las solicitudes terminen
+      const responses = await Promise.all(solicitudes)
+      
+      // Verificamos si alguna falló
+      const algunaFallo = responses.some(res => !res.ok)
+      if (algunaFallo) {
+        throw new Error('No se pudieron registrar algunas solicitudes')
       }
 
-      alert('¡Solicitud registrada con éxito!')
-      setProductoId('') 
-      setNombrePersona('') 
-      // No necesitamos recargar la lista de préstamos, ya que el usuario no la ve
+      alert(`¡Solicitud registrada con éxito para ${listaSolicitud.length} equipo(s)!`)
+      
+      // Limpiamos el formulario
+      setListaSolicitud([])
+      setNombrePersona('')
+      setNumeroControl('')
+      setIntegrantes(1)
+      setSearchTerm('')
 
     } catch (error) {
       console.error('Error en el formulario:', error)
-      if (error instanceof Error) {
-        alert(`Error: ${error.message}`)
-      } else {
-        alert('Ocurrió un error desconocido')
-      }
+      if (error instanceof Error) alert(`Error: ${error.message}`)
+      else alert('Ocurrió un error desconocido')
     } finally {
       setEnviando(false)
     }
@@ -86,41 +145,97 @@ function App() {
   return (
     <div className="App">
       <header>
+        <img src="/logo.png" alt="Logo de la Aplicación" style={{width: "100px", height: "100px"}} />
         <h1>Solicitud de Préstamo de Equipo</h1>
-        <p>Por favor, completa el formulario para solicitar un equipo.</p>
       </header>
       
       {loading && <p>Cargando lista de equipos...</p>}
 
       {!loading && (
         <form onSubmit={handleSubmit} className="formulario-prestamo">
-          <div>
-            <label htmlFor="producto">Equipo a solicitar:</label>
-            <select 
-              id="producto"
-              value={productoId}
-              onChange={(e) => setProductoId(e.target.value)}
-              required
-            >
-              <option value="" disabled>-- Selecciona un equipo --</option>
-              {productos.map((producto) => (
-                <option key={producto.id} value={producto.id}>
-                  {producto.nombre_equipo}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="nombre">Tu Nombre Completo:</label>
-            <input 
-              type="text" 
-              id="nombre"
-              value={nombrePersona}
-              onChange={(e) => setNombrePersona(e.target.value)}
-              required
+          
+          {/* --- DATOS DEL SOLICITANTE --- */}
+          <fieldset>
+            <legend>Datos del Solicitante</legend>
+            <div>
+              <label htmlFor="nombre">Tu Nombre Completo:</label>
+              <input 
+                type="text" 
+                id="nombre"
+                value={nombrePersona}
+                onChange={(e) => setNombrePersona(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="control">Número de Control:</label>
+              <input 
+                type="text" 
+                id="control"
+                value={numeroControl}
+                onChange={(e) => setNumeroControl(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="integrantes">Número de Integrantes (total):</label>
+              <input 
+                type="number" 
+                id="integrantes"
+                value={integrantes}
+                min="1"
+                onChange={(e) => setIntegrantes(parseInt(e.target.value) || 1)}
+                required
+              />
+            </div>
+          </fieldset>
+
+          {/* --- SELECCIÓN DE EQUIPO (Feature 1 & 2) --- */}
+          <fieldset>
+            <legend>Equipos a Solicitar</legend>
+            <label htmlFor="busqueda">Buscar equipo (ej: "Osciloscopio", "Caiman", "Multi mtr"):</label>
+            <input
+              type="text"
+              id="busqueda"
+              value={searchTerm}
+              onChange={handleSearch}
+              placeholder="Escribe el nombre del equipo..."
             />
-          </div>
-          <button type="submit" disabled={enviando || loading}>
+            {/* --- Resultados de Búsqueda --- */}
+            <div className="search-results">
+              {searchResults.map((producto) => (
+                <button 
+                  type="button" 
+                  key={producto.id} 
+                  onClick={() => handleAddItem(producto)}
+                  className="search-result-item"
+                >
+                  Añadir: {producto.nombre_equipo}
+                </button>
+              ))}
+            </div>
+
+            {/* --- Lista de equipos a solicitar --- */}
+            <div className="lista-solicitud">
+              <h4>Equipos en esta solicitud:</h4>
+              {listaSolicitud.length === 0 ? (
+                <p>Aún no has añadido equipos.</p>
+              ) : (
+                <ul>
+                  {listaSolicitud.map((prod) => (
+                    <li key={prod.id}>
+                      {prod.nombre_equipo}
+                      <button type="button" onClick={() => handleRemoveItem(prod.id)} className="remove-btn">
+                        Quitar
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </fieldset>
+
+          <button type="submit" disabled={enviando || loading} className="submit-btn">
             {enviando ? 'Enviando...' : 'Enviar Solicitud'}
           </button>
         </form>
