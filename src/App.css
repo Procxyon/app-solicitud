@@ -1,24 +1,29 @@
 /* Estilos generales */
 body {
   font-family: Arial, sans-serif;
-  background-color: #f4f4f91e;
   margin: 0;
   display: grid;
   place-items: center;
   min-height: 100vh;
   padding: 20px;
   box-sizing: border-box;
- /* background-image: url('./assets/fondo-lab.jpg');
-  background-size:contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed; */
+/*
+  background: linear-gradient(270deg, #ff7c7c, #ffbb77, #8183ff);
+  background-size: 300% 300%;
+  animation: moveGradient 5s ease infinite;*/
+  
 }
-
+/*
+@keyframes moveGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+*/
 .App {
   width: 100%;
   max-width: 800px; 
-  background-color: #000000b0;
+  background-color: #181818eb;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -26,7 +31,7 @@ body {
 
 header {
   text-align: center;
-  border-bottom: 2px solid #000000;
+  border-bottom: 2px solid #ffffff;
   padding-bottom: 10px;
 }
 
@@ -40,7 +45,7 @@ header {
 
 .formulario-prestamo legend {
   font-weight: bold;
-  color: #333;
+  color: #ffffff;
 }
 
 .formulario-prestamo div {
@@ -87,15 +92,70 @@ header {
   list-style-type: none;
   padding-left: 0;
 }
-.lista-solicitud li {
+/* --- ESTILOS ACTUALIZADOS Y NUEVOS --- */
+
+/* (Esto reemplaza tu .lista-solicitud li) */
+.solicitud-item {
   display: flex;
+  flex-wrap: wrap; /* Para que se ajuste en móviles */
   justify-content: space-between;
   align-items: center;
-  padding: 8px;
-  background-color: #00000096;
+  padding: 10px;
+  background-color: #00000096; /* Tu color de fondo */
   border: 1px solid #eee;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   border-radius: 4px;
+}
+
+.solicitud-item .item-name {
+  font-weight: bold;
+  flex-basis: 100%; /* Ocupa todo el ancho en móviles */
+  margin-bottom: 5px;
+  color: #eee; /* Color de texto para fondo oscuro */
+}
+
+/* (Esto hace que se vea bien en desktop) */
+@media (min-width: 600px) {
+  .solicitud-item .item-name {
+    flex-basis: auto; 
+    margin-bottom: 0;
+  }
+}
+
+/* (Nuevos estilos para el contador) */
+.item-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Espacio entre "Cantidad:", el input y "Quitar" */
+  width: 100%; /* Asegura que ocupe todo el espacio en móviles */
+}
+
+@media (min-width: 600px) {
+  .item-controls {
+    width: auto; /* Vuelve a la normalidad en desktop */
+  }
+}
+
+.item-controls label {
+  font-size: 0.9em;
+  color: #ccc !important; /* Fuerza el color claro */
+  margin-bottom: 0 !important; /* Resetea el margen de tu label general */
+}
+
+.item-quantity {
+  width: 60px; /* Un ancho fijo para el input de número */
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* (También, ajusta el color del label del checkbox y el texto 'p') */
+.terminos-container label {
+  color: #ccc !important;
+  display: inline !important; /* Para que el checkbox esté al lado */
+}
+.lista-solicitud p {
+  color: #ccc;
 }
 .remove-btn {
   background-color: #ffcccc;
@@ -126,4 +186,67 @@ header {
 }
 .submit-btn:not(:disabled):hover {
   background-color: #218838;
+}
+
+/* --- ESTILOS PARA EL MODAL --- */
+
+/* 1. El "link" para abrir el modal */
+.link-reglamento {
+  color: #007bff;
+  text-decoration: underline;
+  cursor: pointer;
+  margin-left: 5px;
+}
+.link-reglamento:hover {
+  color: #0056b3;
+}
+
+/* 2. El fondo oscuro (overlay) */
+.modal-overlay {
+  position: fixed; 
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.396); 
+  display: grid;
+  place-items: center; 
+  z-index: 1000; 
+}
+
+/* 3. Contenido */
+.modal-content {
+  background-color: rgb(0, 0, 0);
+  padding: 20px 30px;
+  border-radius: 8px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.modal-content ol {
+  line-height: 1.6;
+}
+
+/* 4. El botón de cerrar */
+.modal-close-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 15px;
+  float: right;
+}
+.modal-close-btn:hover {
+  background-color: #0056b3;
 }
