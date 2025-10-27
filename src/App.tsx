@@ -175,11 +175,11 @@ function App() {
             {/* Tus campos de Nombre, Control, e Integrantes se conservan */}
             <div>
               <label htmlFor="nombre">Nombre Completo:</label>
-              <input type="text" id="nombre" value={nombrePersona} onChange={(e) => setNombrePersona(e.target.value)} placeholder="NOMBRE | APELLIDOS" required />
+              <input type="text" id="nombre" value={nombrePersona} onChange={(e) => setNombrePersona(e.target.value)} placeholder="Nombre || Apellidos" required />
             </div>
             <div>
               <label htmlFor="control">Número de Control:</label>
-              <input type="text" id="control" value={numeroControl} onChange={(e) => setNumeroControl(e.target.value)} placeholder="SE ENCUENTRA EN LA PARTE INFERIOR DE SU CREDENCIAL " required />
+              <input type="text" id="control" value={numeroControl} onChange={(e) => setNumeroControl(e.target.value)} placeholder="Se encuentra en tu credencial" required />
             </div>
             <div>
               <label htmlFor="integrantes">Número de Integrantes (total):</label>
@@ -215,7 +215,7 @@ function App() {
           </fieldset>
 
           <fieldset>
-            <legend>Equipos a Solicitar</legend>
+            <legend>Herramienta / Equipo a Solicitar</legend>
             {/* Tu búsqueda se conserva */}
             <label htmlFor="busqueda">Herramienta / Equipo:</label>
             <input type="text" id="busqueda" value={searchTerm} onChange={handleSearch} placeholder="Escribe el nombre de la herramienta o equipo" />
@@ -229,7 +229,7 @@ function App() {
 
             {/* --- CAMBIO EN LA LISTA DE SOLICITUD --- */}
             <div className="lista-solicitud">
-              <h4>Equipos en esta solicitud:</h4>
+              <h4>Solicitud:</h4>
               {listaSolicitud.length === 0 ? (
                 <p>Aún no has añadido equipos.</p>
               ) : (
