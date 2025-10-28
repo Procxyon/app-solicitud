@@ -119,10 +119,11 @@ function App() {
     
     setEnviando(true)
 
-    // --- 1. ESTA LÍNEA DEBE ESTAR AQUÍ ---
-    // (Genera el "folio" único)
+    // --- ¡LA CORRECCIÓN ESTÁ AQUÍ! ---
+    // 1. Genera un "folio" (UUID) único para esta solicitud
     const solicitud_id = crypto.randomUUID(); 
 
+    // 2. Prepara todas las solicitudes (fetch) en un array
     const solicitudes = listaSolicitud.map(producto => {
       return fetch(`${API_URL}/api/prestamos`, {
         method: 'POST',
@@ -130,21 +131,33 @@ function App() {
         body: JSON.stringify({
           producto_id: producto.id, 
           nombre_persona: nombrePersona,
-          numero_de_control: numeroControl,
+          numero_de_control: numeroControl, // El backend lo guarda en 'id_persona'
           integrantes: integrantes,
           cantidad: producto.cantidad,
           materia: materia,
           grupo: grupo,
-          // --- 2. Y ESTA LÍNEA TAMBIÉN ---
-          solicitud_uuid: solicitud_id 
+          solicitud_uuid: solicitud_id // <-- Envía el mismo "folio" en todas
         }),
       })
     })
+
     try {
       // 3. Ejecuta todas las solicitudes en paralelo
       const responses = await Promise.all(solicitudes)
       const algunaFallo = responses.some(res => !res.ok)
-      if (algunaFallo) throw new Error('No se pudieron registrar algunas solicitudes')
+      
+      if (algunaFallo) {
+        // Si falló, intentamos leer el error del backend
+        const errorResponse = responses.find(res => !res.ok);
+        let errorMsg = 'No se pudieron registrar algunas solicitudes';
+        if (errorResponse) {
+          try {
+            const errData = await errorResponse.json();
+            errorMsg = `Error: ${errData.err || errorResponse.statusText}`;
+          } catch(e) { /* No hacer nada si no se puede leer el JSON */ }
+        }
+        throw new Error(errorMsg);
+      }
 
       alert(`¡Solicitud registrada con éxito para ${listaSolicitud.length} tipo(s) de equipo!`)
       
@@ -160,7 +173,7 @@ function App() {
 
     } catch (error) {
       console.error('Error en el formulario:', error)
-      if (error instanceof Error) alert(`Error: ${error.message}`)
+      if (error instanceof Error) alert(error.message) // Muestra el error específico
       else alert('Ocurrió un error desconocido')
     } finally {
       setEnviando(false)
