@@ -119,11 +119,10 @@ function App() {
     
     setEnviando(true)
 
-    // --- ¡NUEVA LÓGICA DE VÍNCULO! ---
-    // 1. Genera un "folio" (UUID) único para esta solicitud
+    // --- 1. ESTA LÍNEA DEBE ESTAR AQUÍ ---
+    // (Genera el "folio" único)
     const solicitud_id = crypto.randomUUID(); 
 
-    // 2. Prepara todas las solicitudes (fetch) en un array
     const solicitudes = listaSolicitud.map(producto => {
       return fetch(`${API_URL}/api/prestamos`, {
         method: 'POST',
@@ -131,16 +130,16 @@ function App() {
         body: JSON.stringify({
           producto_id: producto.id, 
           nombre_persona: nombrePersona,
-          numero_de_control: numeroControl, // El backend lo guarda en 'id_persona'
+          numero_de_control: numeroControl,
           integrantes: integrantes,
           cantidad: producto.cantidad,
           materia: materia,
           grupo: grupo,
-          solicitud_uuid: solicitud_id // <-- Envía el mismo "folio" en todas
+          // --- 2. Y ESTA LÍNEA TAMBIÉN ---
+          solicitud_uuid: solicitud_id 
         }),
       })
     })
-
     try {
       // 3. Ejecuta todas las solicitudes en paralelo
       const responses = await Promise.all(solicitudes)
