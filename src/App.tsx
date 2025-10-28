@@ -48,15 +48,17 @@ function App() {
 
   // --- EFECTOS ---
   // Carga los productos del inventario al iniciar
-  useEffect(() => {
+ useEffect(() => {
     const fetchProductos = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${API_URL}/api/inventario`);
+        // --- ¡ASEGÚRATE DE QUE TENGA EL PARÁMETRO! ---
+        const response = await fetch(`${API_URL}/api/inventario?public=true`); 
         const data = await response.json();
         setTodosLosProductos(data);
       } catch (error) {
         console.error('Error al cargar productos:', error);
+        alert('No se pudo cargar la lista de equipos.'); // Mensaje para el usuario
       }
       setLoading(false);
     }
