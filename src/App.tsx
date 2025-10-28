@@ -3,17 +3,22 @@ import type { FormEvent } from 'react'
 import Fuse from 'fuse.js' 
 import './App.css' 
 
+// La URL de tu API Worker
 const API_URL = 'https://api-inventario.dejesus-ramirez-josue.workers.dev' 
+
+// --- INTERFACES ---
 
 interface Producto {
   id: number;
   nombre_equipo: string;
 }
 
+// Guarda el producto Y la cantidad
 interface SolicitudItem extends Producto {
   cantidad: number;
 }
 
+// Opciones para la búsqueda difusa
 const fuseOptions = {
   keys: ['nombre_equipo'],
   threshold: 0.4,
@@ -21,27 +26,28 @@ const fuseOptions = {
 };
 
 function App() {
+  // --- ESTADOS ---
   const [todosLosProductos, setTodosLosProductos] = useState<Producto[]>([])
   const [listaSolicitud, setListaSolicitud] = useState<SolicitudItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<Producto[]>([])
   const fuse = useMemo(() => new Fuse(todosLosProductos, fuseOptions), [todosLosProductos])
 
+  // Estados del formulario
   const [nombrePersona, setNombrePersona] = useState('')
   const [numeroControl, setNumeroControl] = useState('')
   const [integrantes, setIntegrantes] = useState(1)
-  
-  // --- ¡NUEVOS ESTADOS! ---
   const [materia, setMateria] = useState('')
   const [grupo, setGrupo] = useState('')
-
+  
+  // Estados de UI
   const [terminosUso, setUso] = useState(false)
   const [modalAbierto, setModalAbierto] = useState(false)
-  
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
 
-  // Carga productos (sin cambios)
+  // --- EFECTOS ---
+  // Carga los productos del inventario al iniciar
   useEffect(() => {
     const fetchProductos = async () => {
       setLoading(true);
@@ -55,9 +61,11 @@ function App() {
       setLoading(false);
     }
     fetchProductos()
-  }, []) 
+  }, []) // Se ejecuta solo una vez
 
-  // Funciones de búsqueda y lista (sin cambios)
+  // --- FUNCIONES DE MANEJO ---
+
+  // Búsqueda de productos
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchTerm = e.target.value
     setSearchTerm(newSearchTerm)
@@ -69,6 +77,7 @@ function App() {
     setSearchResults(results.slice(0, 5)) 
   }
 
+  // Añadir item a la lista de solicitud (con cantidad 1)
   const handleAddItem = (producto: Producto) => {
     if (!listaSolicitud.find(item => item.id === producto.id)) {
       setListaSolicitud([...listaSolicitud, { ...producto, cantidad: 1 }]) 
@@ -77,21 +86,24 @@ function App() {
     setSearchResults([])
   }
 
+  // Quitar item de la lista
   const handleRemoveItem = (productoId: number) => {
     setListaSolicitud(listaSolicitud.filter(item => item.id !== productoId))
   }
 
+  // Actualizar la cantidad de un item
   const handleUpdateCantidad = (id: number, nuevaCantidad: number) => {
-    const cantidadValidada = Math.max(1, nuevaCantidad);
+    const cantidadValidada = Math.max(1, nuevaCantidad); // Mínimo 1
     setListaSolicitud(listaSolicitud.map(item => 
       item.id === id ? { ...item, cantidad: cantidadValidada } : item
     ));
   };
 
-  // --- FUNCIÓN DE ENVÍO (ACTUALIZADA) ---
+  // --- FUNCIÓN PRINCIPAL DE ENVÍO ---
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault() 
     
+    // Validaciones
     if (!terminosUso) {
       alert('Debes aceptar el reglamento de uso para poder enviar la solicitud.')
       return
@@ -107,6 +119,11 @@ function App() {
     
     setEnviando(true)
 
+    // --- ¡NUEVA LÓGICA DE VÍNCULO! ---
+    // 1. Genera un "folio" (UUID) único para esta solicitud
+    const solicitud_id = crypto.randomUUID(); 
+
+    // 2. Prepara todas las solicitudes (fetch) en un array
     const solicitudes = listaSolicitud.map(producto => {
       return fetch(`${API_URL}/api/prestamos`, {
         method: 'POST',
@@ -114,29 +131,31 @@ function App() {
         body: JSON.stringify({
           producto_id: producto.id, 
           nombre_persona: nombrePersona,
-          numero_de_control: numeroControl,
+          numero_de_control: numeroControl, // El backend lo guarda en 'id_persona'
           integrantes: integrantes,
           cantidad: producto.cantidad,
-          materia: materia, // <-- ¡NUEVO!
-          grupo: grupo      // <-- ¡NUEVO!
+          materia: materia,
+          grupo: grupo,
+          solicitud_uuid: solicitud_id // <-- Envía el mismo "folio" en todas
         }),
       })
     })
 
     try {
+      // 3. Ejecuta todas las solicitudes en paralelo
       const responses = await Promise.all(solicitudes)
       const algunaFallo = responses.some(res => !res.ok)
       if (algunaFallo) throw new Error('No se pudieron registrar algunas solicitudes')
 
       alert(`¡Solicitud registrada con éxito para ${listaSolicitud.length} tipo(s) de equipo!`)
       
-      // Limpia el formulario (incluyendo los nuevos campos)
+      // 4. Limpia todo el formulario
       setListaSolicitud([])
       setNombrePersona('')
       setNumeroControl('')
       setIntegrantes(1)
-      setMateria('') // <-- ¡NUEVO!
-      setGrupo('')   // <-- ¡NUEVO!
+      setMateria('')
+      setGrupo('')
       setSearchTerm('')
       setUso(false)
 
@@ -149,6 +168,7 @@ function App() {
     }
   }
 
+  // --- RENDERIZADO (JSX) ---
   return (
     <div className="App">
       <header>
@@ -172,43 +192,20 @@ function App() {
               <input type="text" id="control" value={numeroControl} onChange={(e) => setNumeroControl(e.target.value)} placeholder="SE ENCUENTRA EN LA PARTE INFERIOR DE SU CREDENCIAL " required />
             </div>
             
-            {/* --- ¡NUEVA FILA DE FORMULARIO! --- */}
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="integrantes">Núm. de Integrantes:</label>
-                <input 
-                  type="number" 
-                  id="integrantes"
-                  value={integrantes}
-                  min="1"
-                  onChange={(e) => setIntegrantes(parseInt(e.target.value) || 1)}
-                  required
-                />
+                <input type="number" id="integrantes" value={integrantes} min="1" onChange={(e) => setIntegrantes(parseInt(e.target.value) || 1)} required />
               </div>
-
               <div className="form-group">
                 <label htmlFor="materia">Materia (Opcional):</label>
-                <input 
-                  type="text" 
-                  id="materia"
-                  value={materia}
-                  onChange={(e) => setMateria(e.target.value)}
-                  placeholder="Ej. Circuitos Eléctricos"
-                />
+                <input type="text" id="materia" value={materia} onChange={(e) => setMateria(e.target.value)} placeholder="Ej. Circuitos Eléctricos" />
               </div>
-
               <div className="form-group">
                 <label htmlFor="grupo">Grupo (Opcional):</label>
-                <input 
-                  type="text" 
-                  id="grupo"
-                  value={grupo}
-                  onChange={(e) => setGrupo(e.target.value)}
-                  placeholder="Ej. 5CV1"
-                />
+                <input type="text" id="grupo" value={grupo} onChange={(e) => setGrupo(e.target.value)} placeholder="Ej. 5CV1" />
               </div>
             </div>
-            {/* --- FIN DE LA NUEVA FILA --- */}
 
            <div className="terminos-container">
               <input type="checkbox" id="Uso" checked={terminosUso} onChange={(e) => setUso(e.target.checked)} required />
@@ -218,6 +215,8 @@ function App() {
                 </span>
               </label>
             </div>
+            
+            {/* Modal del Reglamento */}
             {modalAbierto && (
               <div className="modal-overlay" onClick={() => setModalAbierto(false)}>
                 <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -238,12 +237,11 @@ function App() {
             )}
           </fieldset>
           
-          {/* ... (El fieldset de Equipos a Solicitar y el botón de submit no cambian) ... */}
           <fieldset>
             <legend>Equipos a Solicitar</legend>
-            {/* ... (todo el código de búsqueda y lista de solicitud) ... */}
             <label htmlFor="busqueda">Herramienta / Equipo:</label>
             <input type="text" id="busqueda" value={searchTerm} onChange={handleSearch} placeholder="Escribe el nombre de la herramienta o equipo" />
+            
             <div className="search-results">
               {searchResults.map((producto) => (
                 <button type="button" key={producto.id} onClick={() => handleAddItem(producto)} className="search-result-item">
@@ -251,6 +249,7 @@ function App() {
                 </button>
               ))}
             </div>
+            
             <div className="lista-solicitud">
               <h4>Equipos en esta solicitud:</h4>
               {listaSolicitud.length === 0 ? (
