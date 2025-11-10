@@ -1,279 +1,266 @@
-/* Estilos generales */
-body {
-  font-family: Arial, sans-serif;
+/* --- 1. GLOBALES Y FONDO ANIMADO --- */
+body, html {
   margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  color: #eee;
+  /* El fondo animado que ya tenías */
+  background: linear-gradient(270deg, #1d2b4a, #1a1a1a, #1d2b4a);
+  background-size: 300% 300%;
+  animation: moveGradient 15s ease infinite;
+  
   display: grid;
   place-items: center;
-  min-height: 100vh;
-  padding: 20px;
+  min-height: 1vh;  
+  padding: 10px;
   box-sizing: border-box;
-/*
-  background: linear-gradient(270deg, #ff7c7c, #ffbb77, #8183ff);
-  background-size: 300% 300%;
-  animation: moveGradient 5s ease infinite;*/
-  
 }
-/*
+
 @keyframes moveGradient {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-*/
+
+/* --- 2. CONTENEDOR PRINCIPAL "DE VIDRIO" --- */
 .App {
   width: 100%;
-  max-width: 800px; 
-  background-color: #181818eb;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  max-width: 800px;
+  margin: 0 auto;
+  
+  /* --- ¡LA CORRECCIÓN ESTÁ AQUÍ! --- */
+  /* 1. Fondo blanco MUY transparente */
+  background: rgba(255, 255, 255, 0.05); 
+  /* 2. El blur que difumina el fondo */
+  backdrop-filter: blur(10px);        
+  /* 3. Bordes redondeados */
+  border-radius: 15px;                
+  /* 4. Borde sutil que "atrapa la luz" */
+  border: 1px solid rgba(255, 255, 255, 0.2); 
+  /* 5. Sombra para profundidad */
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); 
+  
+  padding: 30px;
+  /* La vieja 'background-color: rgba(26, 26, 26, 0.9);' se elimina */
 }
 
+/* --- 3. CABECERA --- */
 header {
   text-align: center;
-  border-bottom: 2px solid #ffffff;
-  padding-bottom: 10px;
-}
-
-/* Estilos del formulario */
-.formulario-prestamo fieldset {
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  /* Borde de vidrio para separar */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 20px;
   margin-bottom: 20px;
-  padding: 15px;
+}
+header h1 {
+  margin: 10px 0 0 0;
+  color: #ffffff; /* Título en blanco puro */
+  font-weight: 300; /* Más delgado */
+  letter-spacing: 1px;
+}
+header img {
+  max-width: 100%;
+  height: auto;
 }
 
+/* --- 4. ESTILOS DE FORMULARIO (Minimalista) --- */
+.formulario-prestamo fieldset {
+  border: none; /* Quitamos bordes de fieldset */
+  padding: 0;
+  margin-bottom: 20px;
+}
 .formulario-prestamo legend {
   font-weight: bold;
-  color: #ffffff;
+  color: #eee;
+  padding: 0;
+  margin-bottom: 15px;
+  font-size: 1.2em;
 }
-
 .formulario-prestamo div {
   margin-bottom: 15px;
 }
-
 .formulario-prestamo label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   font-weight: 600;
-  color: #555;
+  color: #ccc;
+  font-size: 0.9em;
 }
 
+/* Inputs de "Vidrio" */
 .formulario-prestamo input[type="text"],
-.formulario-prestamo input[type="number"] {
+.formulario-prestamo input[type="number"],
+.formulario-prestamo select,
+.formulario-prestamo textarea {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   box-sizing: border-box;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1); /* Fondo de input de vidrio */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Borde de vidrio */
+  border-radius: 5px;
+  color: #eee;
+  font-family: Arial, sans-serif;
+  font-size: 1em;
+}
+.formulario-prestamo input::placeholder {
+    color: #ccc; /* Placeholder más claro */
+}
+.formulario-prestamo input:focus,
+.formulario-prestamo select:focus,
+.formulario-prestamo textarea:focus {
+    outline: none;
+    border: 1px solid #007bff; /* Borde azul al seleccionar */
+    box-shadow: 0 0 10px rgba(0,123,255,0.3);
 }
 
-.search-results {
-  margin-top: 5px;
-  display: flex;
-  flex-direction: column;
-}
+/* Fila de 3 campos */
+.form-row { display: flex; flex-wrap: wrap; gap: 15px; }
+.form-group { flex: 1; min-width: 150px; margin-bottom: 0 !important; }
+.form-group input { width: 100%; }
 
+/* --- 5. BÚSQUEDA Y LISTA DE ITEMS (Estilo "Vidrio") --- */
+.search-results { margin-top: 5px; display: flex; flex-direction: column; }
 .search-result-item {
-  background-color: #e6f7ff;
-  border: 1px solid #b3e0ff;
-  color: #0056b3;
-  padding: 8px;
-  margin-top: 5px;
-  cursor: pointer;
-  text-align: left;
-  border-radius: 4px;
+  background-color: rgba(0, 123, 255, 0.3); /* Azul transparente */
+  border: 1px solid rgba(0, 123, 255, 0.5);
+  color: #eee;
+  padding: 8px; margin-top: 5px; cursor: pointer; text-align: left; border-radius: 4px;
 }
-.search-result-item:hover {
-  background-color: #d0ebff;
-}
+.search-result-item:hover { background-color: rgba(0, 123, 255, 0.5); }
 
-.lista-solicitud ul {
-  list-style-type: none;
-  padding-left: 0;
-}
-/* --- ESTILOS ACTUALIZADOS Y NUEVOS --- */
+.lista-solicitud h4 { margin-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 15px; }
+.lista-solicitud p { color: #888; }
+.solicitud-items-list { list-style-type: none; padding-left: 0; }
 
-/* (Esto reemplaza tu .lista-solicitud li) */
+/* Estilo de la foto que mandaste */
 .solicitud-item {
   display: flex;
-  flex-wrap: wrap; /* Para que se ajuste en móviles */
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
-  background-color: #00000096; /* Tu color de fondo */
-  border: 1px solid #eee;
+  padding: 12px;
+  background-color: rgba(0, 0, 0, 0.2); /* Fondo de item oscuro */
+  border: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 8px;
   border-radius: 4px;
 }
-
 .solicitud-item .item-name {
   font-weight: bold;
-  flex-basis: 100%; /* Ocupa todo el ancho en móviles */
-  margin-bottom: 5px;
-  color: #eee; /* Color de texto para fondo oscuro */
 }
-
-/* (Esto hace que se vea bien en desktop) */
-@media (min-width: 600px) {
-  .solicitud-item .item-name {
-    flex-basis: auto; 
-    margin-bottom: 0;
-  }
-}
-
-/* (Nuevos estilos para el contador) */
-.item-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px; /* Espacio entre "Cantidad:", el input y "Quitar" */
-  width: 100%; /* Asegura que ocupe todo el espacio en móviles */
-}
-
-@media (min-width: 600px) {
-  .item-controls {
-    width: auto; /* Vuelve a la normalidad en desktop */
-  }
-}
-
-.item-controls label {
-  font-size: 0.9em;
-  color: #ccc !important; /* Fuerza el color claro */
-  margin-bottom: 0 !important; /* Resetea el margen de tu label general */
-}
-
+.item-controls { display: flex; align-items: center; gap: 10px; }
+.item-controls label { font-size: 0.9em; color: #ccc !important; margin-bottom: 0 !important; }
 .item-quantity {
-  width: 60px; /* Un ancho fijo para el input de número */
+  width: 70px !important; text-align: center;
   padding: 5px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1); 
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #eee;
 }
+.item-quantity::placeholder { color: #ccc; }
 
-/* (También, ajusta el color del label del checkbox y el texto 'p') */
-.terminos-container label {
-  color: #ccc !important;
-  display: inline !important; /* Para que el checkbox esté al lado */
-}
-.lista-solicitud p {
-  color: #ccc;
-}
 .remove-btn {
-  background-color: #ffcccc;
-  border: none;
-  color: #a00;
-  padding: 5px 8px;
-  border-radius: 4px;
+  background-color: #dc3545; border: none; color: white;
+  padding: 5px 8px; border-radius: 4px; cursor: pointer;
+  margin-left: auto;
+}
+.remove-btn:hover { background-color: #c82333; }
+
+/* --- 6. ACORDEÓN (Minimalista) --- */
+.accordion-item {
+  border: none; /* Sin borde */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2); /* Separador de vidrio */
+  margin-bottom: 10px;
+  background-color: transparent; /* Transparente */
+  border-radius: 0;
+}
+.accordion-header {
+  padding: 15px 10px; /* Menos padding */
+  margin: 0;
   cursor: pointer;
-}
-.remove-btn:hover {
-  background-color: #ff9999;
-}
-
-/* --- Botón de envío --- */
-.submit-btn {
-  width: 100%;
-  padding: 15px;
-  font-size: 16px;
-  font-weight: bold;
-  background-color: #28a745;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.submit-btn:disabled {
-  background-color: #ccc;
-}
-.submit-btn:not(:disabled):hover {
-  background-color: #218838;
-}
-
-/* --- ESTILOS PARA EL MODAL --- */
-
-/* 1. El "link" para abrir el modal */
-.link-reglamento {
-  color: #007bff;
-  text-decoration: underline;
-  cursor: pointer;
-  margin-left: 5px;
-}
-.link-reglamento:hover {
-  color: #0056b3;
-}
-
-/* 2. El fondo oscuro (overlay) */
-.modal-overlay {
-  position: fixed; 
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.396); 
-  display: grid;
-  place-items: center; 
-  z-index: 1000; 
-}
-
-/* 3. Contenido */
-.modal-content {
-  background-color: rgb(0, 0, 0);
-  padding: 20px 30px;
-  border-radius: 8px;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-}
-
-.modal-content h2 {
-  margin-top: 0;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-}
-
-.modal-content ol {
-  line-height: 1.6;
-}
-
-/* 4. El botón de cerrar */
-.modal-close-btn {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 16px;
-  margin-top: 15px;
-  float: right;
-}
-.modal-close-btn:hover {
-  background-color: #0056b3;
-}
-
-/* --- ESTILOS PARA LA FILA DE 3 CAMPOS --- */
-
-.form-row {
   display: flex;
-  flex-wrap: wrap; /* Permite que se apilen en móviles */
-  gap: 15px;      /* Espacio entre los campos */
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.05); /* Ligeramente visible */
+  border-radius: 6px;
+}
+.accordion-header:hover { background-color: rgba(255, 255, 255, 0.1); }
+.accordion-header span { font-size: 1.2em; }
+.accordion-content {
+  padding: 20px 10px 10px 10px; /* Padding ajustado */
+  border-top: none;
+}
+.accordion-content fieldset { margin: 0; padding: 0; border: none; }
+
+.next-btn {
+  background-color: #007bff; color: white; border: none;
+  padding: 10px 20px; border-radius: 5px; cursor: pointer;
+  font-weight: bold; float: right; margin-top: 10px;
+}
+.next-btn:hover { background-color: #0056b3; }
+
+/* --- 7. SELECCIÓN DE TIPO --- */
+.tipo-solicitud-selector { display: flex; gap: 10px; margin-bottom: 20px; }
+.tipo-solicitud-selector label {
+  flex: 1; padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.3); /* Borde de vidrio */
+  background: rgba(255, 255, 255, 0.1); /* Fondo de vidrio */
+  border-radius: 10px; cursor: pointer; text-align: center;
+  font-weight: bold; transition: all 0.2s ease;
+}
+.tipo-solicitud-selector input[type="radio"] { display: none; }
+.tipo-solicitud-selector label:hover { background-color: rgba(255, 255, 255, 0.2); }
+.tipo-solicitud-selector label.active {
+  background-color: #007bff; /* Azul sólido al seleccionar */
+  border-color: #007bff;
+  color: white;
 }
 
-/* Cada campo en la fila */
-.form-group {
-  flex: 1; /* Hace que crezcan para llenar el espacio */
-  min-width: 150px; /* Ancho mínimo antes de apilarse */
-  margin-bottom: 0 !important; /* Anula el margen de 15px de ".formulario-prestamo div" */
+/* --- 8. CAMPOS DESHABILITADOS Y MODAL --- */
+.campos-equipo { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+.campos-equipo.visible { max-height: 500px; }
+.formulario-prestamo input:disabled,
+.formulario-prestamo select:disabled {
+  background: rgba(0, 0, 0, 0.2) !important; /* Más oscuro */
+  color: #666 !important;
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
-/* * Sobreescribe el estilo general para que el input
- * dentro de un form-group también ocupe el 100%
- * de su 'form-group' padre.
- */
-.form-group input {
-  width: 100%;
-  padding: 10px;
-  box-sizing: border-box;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.terminos-container { display: flex; align-items: center; gap: 10px; }
+.terminos-container input[type="checkbox"] { width: auto; }
+.terminos-container label { color: #ccc !important; display: inline !important; margin-bottom: 0; }
+.link-reglamento { color: #007bff; text-decoration: underline; cursor: pointer; }
+.link-reglamento:hover { color: #3399ff; }
+
+/* Modal de Vidrio */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: grid; place-items: center; z-index: 1000;
+  backdrop-filter: blur(5px); /* Difumina la app detrás */
 }
+.modal-content {
+  background: rgba(40, 40, 40, 0.8); /* Vidrio oscuro */
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 30px; border-radius: 15px; max-width: 600px;
+  width: 90%; max-height: 80vh; overflow-y: auto;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+.modal-content h2 { margin-top: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.2); padding-bottom: 10px; color: #00aaff; }
+.modal-content ol { line-height: 1.6; }
+.modal-close-btn {
+  background-color: #007bff; color: white; border: none;
+  padding: 10px 15px; border-radius: 5px; cursor: pointer;
+  font-size: 16px; margin-top: 15px; float: right;
+}
+.modal-close-btn:hover { background-color: #0056b3; }
+
+/* --- 9. BOTÓN DE ENVÍO --- */
+.submit-btn {
+  width: 100%; padding: 15px; font-size: 16px; font-weight: bold;
+  background-color: #28a745; /* Verde sólido */
+  color: white; border: none; border-radius: 5px;
+  cursor: pointer; transition: background-color 0.2s ease;
+}
+.submit-btn:disabled { background-color: #555; cursor: not-allowed; opacity: 0.7; }
+.submit-btn:not(:disabled):hover { background-color: #218838; }
