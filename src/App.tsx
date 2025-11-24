@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
-import Fuse from 'fuse.js' 
 import './App.css' 
 import toast from 'react-hot-toast';
 
@@ -11,23 +10,19 @@ interface Producto {
   id: number;
   nombre_equipo: string;
 }
+
+// Nueva interfaz para soportar items con y sin ID
 interface SolicitudItem {
-  id: number;
-  nombre_equipo: string;
-  cantidad: string; 
+  tempId: string;        // ID único temporal para la lista visual
+  nombre_ui: string;     // Lo que escribió el usuario
+  cantidad: string;
+  producto_real?: Producto | null; // Objeto si coincidió con inventario, null si no
 }
 // --- Fin de Interfaces ---
-
-const fuseOptions = {
-  keys: ['nombre_equipo'],
-  threshold: 0.4,
-  includeScore: true
-};
 
 function App() {
   // --- Estados ---
   const [todosLosProductos, setTodosLosProductos] = useState<Producto[]>([])
-  const fuse = useMemo(() => new Fuse(todosLosProductos, fuseOptions), [todosLosProductos])
   
   // Estados del formulario
   const [nombrePersona, setNombrePersona] = useState('')
@@ -38,9 +33,10 @@ function App() {
   const [grupo, setGrupo] = useState('')
   const [nombreProfesor, setNombreProfesor] = useState('');
   
+  // Lista de items y Inputs temporales
   const [listaSolicitud, setListaSolicitud] = useState<SolicitudItem[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [searchResults, setSearchResults] = useState<Producto[]>([])
+  const [textoMaterial, setTextoMaterial] = useState('');
+  const [cantidadInput, setCantidadInput] = useState('1');
   
   // Estados de UI
   const [terminosUso, setUso] = useState(false)
@@ -48,13 +44,10 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
 
-  // --- ¡CORRECCIÓN DE TIPO AQUÍ! ---
-  // Se añade '' (vacío) para permitir que las secciones se cierren
   type Seccion = 'solicitante' | 'tipo' | 'equipo' | ''; 
   const [seccionAbierta, setSeccionAbierta] = useState<Seccion>('solicitante');
 
-
-  // --- Carga de Productos ---
+  // --- Carga de Productos (Solo para validación interna, no se muestra lista) ---
   useEffect(() => {
     const fetchProductos = async () => {
       setLoading(true);
@@ -70,39 +63,44 @@ function App() {
     fetchProductos()
   }, [])
 
-  // --- Funciones de Manejo de Lista ---
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newSearchTerm = e.target.value
-    setSearchTerm(newSearchTerm)
-    if (newSearchTerm.trim() === '') {
-      setSearchResults([])
-      return
-    }
-    const results = fuse.search(newSearchTerm).map(result => result.item)
-    setSearchResults(results.slice(0, 5)) 
-  }
+  // --- Funciones de Manejo de Lista (NUEVA LÓGICA) ---
   
-  const handleAddItem = (producto: Producto) => {
-    if (!listaSolicitud.find(item => item.id === producto.id)) {
-      setListaSolicitud([...listaSolicitud, { ...producto, cantidad: '' }]) 
-    }
-    setSearchTerm('')
-    setSearchResults([])
-  }
+  // Buscar coincidencia exacta (Normalizando texto)
+  const findExactMatch = (text: string): Producto | null => {
+    if (!text) return null;
+    const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const target = normalize(text);
+    return todosLosProductos.find(p => normalize(p.nombre_equipo) === target) || null;
+  };
 
-  const handleRemoveItem = (productoId: number) => {
-    setListaSolicitud(listaSolicitud.filter(item => item.id !== productoId))
-  }
+  const handleAddItem = () => {
+    if (!textoMaterial.trim()) return;
 
-  const handleUpdateCantidad = (id: number, nuevaCantidad: string) => {
-    if (/^\d*$/.test(nuevaCantidad)) {
-        setListaSolicitud(prev => prev.map(item => 
-          item.id === id ? { ...item, cantidad: nuevaCantidad } : item
-        ));
+    // Buscamos si existe internamente para poner ✅ o ⚠️
+    const coincidencia = findExactMatch(textoMaterial);
+
+    const newItem: SolicitudItem = {
+      tempId: crypto.randomUUID(),
+      nombre_ui: textoMaterial,
+      cantidad: cantidadInput === '' ? '1' : cantidadInput,
+      producto_real: coincidencia // null si no encontró (⚠️)
+    };
+
+    setListaSolicitud([...listaSolicitud, newItem]);
+    setTextoMaterial('');
+    setCantidadInput('1');
+    
+    // Feedback visual sutil
+    if(!coincidencia) {
+        toast('Artículo no registrado en inventario. Se agregará como texto libre.', { icon: '⚠️', duration: 3000 });
     }
   };
 
-  // --- FUNCIÓN DE ENVÍO ---
+  const handleRemoveItem = (tempId: string) => {
+    setListaSolicitud(listaSolicitud.filter(item => item.tempId !== tempId))
+  }
+
+  // --- FUNCIÓN DE ENVÍO ACTUALIZADA ---
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault() 
     
@@ -111,35 +109,41 @@ function App() {
     if (listaSolicitud.length === 0) { toast.error('Debes añadir al menos un equipo.'); return; }
     if (!nombrePersona || !numeroControl) { toast.error('Completa Nombre y N° de Control.'); return; }
     
+    // Validar cantidades positivas
     const itemsSinCantidad = listaSolicitud.filter(item => !item.cantidad || parseInt(item.cantidad) <= 0);
     if (itemsSinCantidad.length > 0) {
-        toast.error(`Introduce una cantidad válida (mayor a 0) para: ${itemsSinCantidad[0].nombre_equipo}`);
+        toast.error(`Introduce una cantidad válida para: ${itemsSinCantidad[0].nombre_ui}`);
         return;
     }
 
     if (tipo === 'EQUIPO' && (!integrantes || !nombreProfesor)) {
-        toast.error('Para solicitudes de EQUIPO, el N° de Integrantes y el Nombre del Profesor son obligatorios.');
+        toast.error('Para solicitudes de EQUIPO, faltan datos obligatorios.');
         return;
     }
     
     const prestamoCount = parseInt(localStorage.getItem('prestamoCount') || '0');
     if (prestamoCount > 0 && prestamoCount % 5 === 0) {
-        const reglamento = `RECUERDA EL REGLAMENTO:\n\n1. El material debe ser entregado en las mismas condiciones.\n2. Cualquier daño será responsabilidad del solicitante.\n3. El equipo debe ser devuelto en la fecha y hora acordadas.\n\n¿Aceptas y entiendes estas condiciones para continuar?`;
-        const aceptado = window.confirm(reglamento); 
-        if (!aceptado) { toast('Solicitud cancelada.', { icon: 'ℹ️' }); return; }
+        const confirmReglas = window.confirm(`RECUERDA:\n1. Entrega en mismas condiciones.\n2. Daños son tu responsabilidad.\n3. Puntualidad.\n¿Aceptas?`);
+        if (!confirmReglas) { return; }
     }
     
     setEnviando(true);
     const loadingToast = toast.loading("Enviando solicitud..."); 
     const solicitud_id = crypto.randomUUID(); 
 
-    const solicitudes = listaSolicitud.map(producto => {
-      const cantidadNum = parseInt(producto.cantidad) || 0; 
+    // Mapeo para enviar al Backend
+    const solicitudes = listaSolicitud.map(item => {
+      const cantidadNum = parseInt(item.cantidad) || 1;
+      const tieneID = !!item.producto_real?.id;
+
       return fetch(`${API_URL}/api/prestamos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          producto_id: producto.id, 
+          // Si tiene ID, lo mandamos. Si no, mandamos null en ID y texto en nombre_extra
+          producto_id: tieneID ? item.producto_real!.id : null, 
+          nombre_extra: tieneID ? null : item.nombre_ui,
+
           nombre_persona: nombrePersona,
           numero_de_control: numeroControl, 
           integrantes: tipo === 'PERSONAL' ? 1 : parseInt(integrantes) || 1,
@@ -158,12 +162,10 @@ function App() {
       
       if (algunaFallo) {
         const errorResponse = responses.find(res => !res.ok);
-        let errorMsg = 'No se pudieron registrar';
+        let errorMsg = 'Error al registrar';
         if (errorResponse) {
-          try {
-            const errData = await errorResponse.json();
-            errorMsg = `Error: ${errData.err || errorResponse.statusText}`;
-          } catch(e) { /* No hacer nada */ }
+             const data = await errorResponse.json();
+             errorMsg = data.err || 'Error desconocido del servidor';
         }
         throw new Error(errorMsg);
       }
@@ -172,14 +174,14 @@ function App() {
       localStorage.setItem('prestamoCount', (prestamoCount + 1).toString());
 
       setListaSolicitud([]); setNombrePersona(''); setNumeroControl(''); 
-      setIntegrantes(''); setMateria(''); setGrupo(''); setNombreProfesor('');
-      setSearchTerm(''); setUso(false); setTipo('PERSONAL');
+      setIntegrantes('1'); setMateria(''); setGrupo(''); setNombreProfesor('');
+      setTextoMaterial(''); setUso(false); setTipo('PERSONAL');
       setSeccionAbierta('solicitante'); 
 
     } catch (error) {
-      console.error('Error en el formulario:', error)
+      console.error(error)
       if (error instanceof Error) toast.error(error.message, { id: loadingToast })
-      else toast.error('Ocurrió un error desconocido', { id: loadingToast })
+      else toast.error('Error de conexión', { id: loadingToast })
     } finally {
       setEnviando(false)
     }
@@ -189,18 +191,17 @@ function App() {
   return (
     <div className="App">
       <header>
-        <img src="/logo.png" alt="Logo de la Aplicación" style={{width: "512px", height: "221px"}} />
-        <h1>Solicitud de Préstamo de Equipo</h1>
+        <img src="/logo.png" alt="Logo" style={{width: "512px", height: "auto", maxWidth:"100%"}} />
+        <h1>Solicitud de Préstamo</h1>
       </header>
       
-      {loading && <p>Cargando lista de equipos...</p>}
+      {loading && <p>Cargando sistema...</p>}
 
       {!loading && (
         <form onSubmit={handleSubmit} className="formulario-prestamo accordion">
           
           {/* --- SECCIÓN 1: SOLICITANTE --- */}
           <div className="accordion-item">
-            {/* --- ¡CORRECCIÓN EN ONCLICK! --- */}
             <h3 className="accordion-header" onClick={() => setSeccionAbierta(seccionAbierta === 'solicitante' ? '' : 'solicitante')}>
               1. Datos del Solicitante 
               <span>{seccionAbierta === 'solicitante' ? '▲' : '▼'}</span>
@@ -210,11 +211,11 @@ function App() {
                 <fieldset>
                   <div>
                     <label htmlFor="nombre">Nombre Completo:</label>
-                    <input type="text" id="nombre" value={nombrePersona} onChange={(e) => setNombrePersona(e.target.value)} placeholder="Ingrese su nombre completo" required />
+                    <input type="text" id="nombre" value={nombrePersona} onChange={(e) => setNombrePersona(e.target.value)} placeholder="Tu nombre completo" required />
                   </div>
                   <div>
                     <label htmlFor="control">Número de Control:</label>
-                    <input type="text" id="control" inputMode="numeric" value={numeroControl} onChange={(e) => {if (/^\d*$/.test(e.target.value)) {setNumeroControl(e.target.value);}}} placeholder="Ingrese su número de control" required />
+                    <input type="text" id="control" inputMode="numeric" value={numeroControl} onChange={(e) => {if (/^\d*$/.test(e.target.value)) {setNumeroControl(e.target.value);}}} placeholder="Tu número de control" required />
                   </div>
                   <button type="button" className="next-btn" onClick={() => setSeccionAbierta('tipo')}>
                     Siguiente ▼
@@ -226,7 +227,6 @@ function App() {
 
           {/* --- SECCIÓN 2: TIPO DE SOLICITUD --- */}
           <div className="accordion-item">
-            {/* --- ¡CORRECCIÓN EN ONCLICK! --- */}
             <h3 className="accordion-header" onClick={() => setSeccionAbierta(seccionAbierta === 'tipo' ? '' : 'tipo')}>
               2. Tipo de Solicitud
               <span>{seccionAbierta === 'tipo' ? '▲' : '▼'}</span>
@@ -241,62 +241,32 @@ function App() {
                     </label>
                     <label className={tipo === 'EQUIPO' ? 'active' : ''}>
                       <input type="radio" name="tipo" value="EQUIPO" checked={tipo === 'EQUIPO'} onChange={(e) => setTipo(e.target.value as any)} />
-                      👥 EQUIPO (Clase / Práctica)
+                      👥 EQUIPO
                     </label>
                   </div>
                   
                   <div className={`campos-equipo ${tipo === 'EQUIPO' ? 'visible' : ''}`}>
                     <div className="form-group" style={{marginBottom: '15px'}}>
                       <label htmlFor="nombreProfesor">Nombre del Profesor:</label>
-                      <input type="text" id="nombreProfesor" value={nombreProfesor} onChange={(e) => setNombreProfesor(e.target.value)} placeholder="Nombre del Profesor a cargo" disabled={tipo === 'PERSONAL'} />
-                    </div>
-                    <div style={{ marginBottom: '16px' }}>                  
+                      <input type="text" id="nombreProfesor" value={nombreProfesor} onChange={(e) => setNombreProfesor(e.target.value)} disabled={tipo === 'PERSONAL'} />
                     </div>
                     <div className="form-row">
                       <div className="form-group">
-                        <label htmlFor="integrantes">Núm. de Integrantes:</label>                        
+                        <label htmlFor="integrantes">Integrantes:</label>                        
                         <input 
-                          type="text" 
-                          pattern="[0-9]*"
-                          id="integrantes"
-                          inputMode="numeric"
+                          type="number" id="integrantes" min="1" max="5"
                           value={integrantes}
-                          min="1" // Mantenemos min="1" solo como referencia visual
-                          onChange={(e) => {
-                            const rawValue = e.target.value;
-                            
-                            // 1. Permitir vaciar el campo (temporalmente)
-                            if (rawValue === '') {
-                                setIntegrantes('');
-                                return;
-                            }
-                            
-                            // 2. Solo proceder si son dígitos
-                            if (/^\d+$/.test(rawValue)) {
-                                const numValue = parseInt(rawValue, 10);
-                                
-                                if (numValue >= 1 && numValue <= 5) {
-                                    // 3. Rango válido: guardar el string
-                                    setIntegrantes(rawValue);
-                                } else if (numValue > 5) {
-                                    // 4. Rango excedido: forzar el máximo y notificar
-                                    toast.error("El número de integrantes no debe exceder de 5.");
-                                    setIntegrantes('5');
-                                }
-                                // Nota: Si el usuario pone '0', el campo no se actualizará, forzándolo a poner '1'.
-                            }
-                          }}
-                          required={tipo === 'EQUIPO'} 
+                          onChange={(e) => setIntegrantes(e.target.value)}
                           disabled={tipo === 'PERSONAL'} 
                         />
                         </div>
                       <div className="form-group">
-                        <label htmlFor="materia">Materia :</label>
-                        <input type="text" id="materia" value={materia} onChange={(e) => setMateria(e.target.value)} placeholder="Ej. Circuitos Eléctricos" disabled={tipo === 'PERSONAL'} />
+                        <label htmlFor="materia">Materia:</label>
+                        <input type="text" id="materia" value={materia} onChange={(e) => setMateria(e.target.value)} disabled={tipo === 'PERSONAL'} />
                       </div>
                       <div className="form-group">
-                        <label htmlFor="grupo">Grupo :</label>
-                        <input type="text" id="grupo" value={grupo} onChange={(e) => setGrupo(e.target.value)} placeholder="Ej. 0A" disabled={tipo === 'PERSONAL'} />
+                        <label htmlFor="grupo">Grupo:</label>
+                        <input type="text" id="grupo" value={grupo} onChange={(e) => setGrupo(e.target.value)} disabled={tipo === 'PERSONAL'} />
                       </div>
                     </div>
                   </div>
@@ -308,9 +278,8 @@ function App() {
             )}
           </div>
 
-          {/* --- SECCIÓN 3: EQUIPOS --- */}
+          {/* --- SECCIÓN 3: EQUIPOS Y MATERIAL (MODIFICADO) --- */}
           <div className="accordion-item">
-            {/* --- ¡CORRECCIÓN EN ONCLICK! --- */}
             <h3 className="accordion-header" onClick={() => setSeccionAbierta(seccionAbierta === 'equipo' ? '' : 'equipo')}>
               3. Equipos y Material
               <span>{seccionAbierta === 'equipo' ? '▲' : '▼'}</span>
@@ -318,42 +287,55 @@ function App() {
             {seccionAbierta === 'equipo' && (
               <div className="accordion-content">
                 <fieldset>
-                  <label htmlFor="busqueda">Herramienta / Equipo:</label>
-                  <input type="text" id="busqueda" value={searchTerm} onChange={handleSearch} placeholder="Escribe el nombre de la herramienta o equipo" />
+                  <label htmlFor="materialInput">Agregar Material:</label>
                   
-                  <div className="search-results">
-                    {searchResults.map((producto) => (
-                      <button type="button" key={producto.id} onClick={() => handleAddItem(producto)} className="search-result-item">
-                        Añadir: {producto.nombre_equipo}
-                      </button>
-                    ))}
+                  {/* BARRA DE ENTRADA HORIZONTAL */}
+                  <div className="add-item-row">
+                    <input 
+                        type="text" 
+                        className="input-material"
+                        id="materialInput"
+                        value={textoMaterial}
+                        onChange={(e) => setTextoMaterial(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(); } }}
+                        placeholder="Ej. Arduino, Caimanes..." 
+                    />
+                    <input 
+                        type="number" 
+                        className="input-cantidad"
+                        value={cantidadInput}
+                        onChange={(e) => setCantidadInput(e.target.value)}
+                        placeholder="Cant."
+                        min="1"
+                    />
+                    <button type="button" onClick={handleAddItem} className="btn-add">+</button>
                   </div>
                   
                   <div className="lista-solicitud">
-                    <h4>Equipos en esta solicitud:</h4>
+                    <h4>Carrito de Solicitud:</h4>
                     {listaSolicitud.length === 0 ? (
-                      <p>Aún no has añadido equipos.</p>
+                      <p style={{fontSize:'0.9em', color:'#aaa'}}>Lista vacía.</p>
                     ) : (
                       <ul className="solicitud-items-list">
-                        {listaSolicitud.map((prod) => (
-                          <li key={prod.id} className="solicitud-item">
-                            <span className="item-name">{prod.nombre_equipo}</span>
+                        {listaSolicitud.map((item) => (
+                          <li key={item.tempId} className="solicitud-item">
+                            <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                                {/* ICONO DE ESTADO */}
+                                <div className="item-status">
+                                    {item.producto_real ? (
+                                        <span title="OK: Encontrado en inventario">✅</span>
+                                    ) : (
+                                        <span title="Advertencia: No coincide con inventario (Se pedirá como extra)" style={{fontSize:'1.2em'}}>⚠️</span>
+                                    )}
+                                </div>
+                                <span className="item-name">{item.nombre_ui}</span>
+                            </div>
+                            
                             <div className="item-controls">
-                              <label htmlFor={`qty-${prod.id}`}>Cantidad:</label>
-                              <input 
-                                type="text" 
-                                pattern="[0-9]*" 
-                                inputMode="numeric"
-                                id={`qty-${prod.id}`} 
-                                className="item-quantity" 
-                                value={prod.cantidad} 
-                                placeholder="Cant." 
-                                onChange={(e) => handleUpdateCantidad(prod.id, e.target.value)}
-                                required
-                              />
-                              <button type="button" onClick={() => handleRemoveItem(prod.id)} className="remove-btn">
-                                Quitar
-                              </button>
+                                <span style={{color:'#ccc', marginRight:'10px'}}>x {item.cantidad}</span>
+                                <button type="button" onClick={() => handleRemoveItem(item.tempId)} className="remove-btn">
+                                    X
+                                </button>
                             </div>
                           </li>
                         ))}
@@ -362,12 +344,12 @@ function App() {
                   </div>
                 </fieldset>
 
-                {/* --- SECCIÓN FINAL: TÉRMINOS Y ENVÍO --- */}
-                <div className="terminos-container">
+                {/* --- TÉRMINOS Y ENVÍO --- */}
+                <div className="terminos-container" style={{marginTop:'20px'}}>
                   <input type="checkbox" id="Uso" checked={terminosUso} onChange={(e) => setUso(e.target.checked)} required />
                   <label htmlFor="Uso"> 
                     <span className="link-reglamento" onClick={(e) => { e.preventDefault(); setModalAbierto(true); }}>
-                      Acepto el reglamento de préstamos de equipo
+                      Acepto el reglamento
                     </span>
                   </label>
                 </div>
@@ -375,17 +357,14 @@ function App() {
                 {modalAbierto && (
                   <div className="modal-overlay" onClick={() => setModalAbierto(false)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                      <h2>Reglamento de Uso y Obligaciones</h2>
+                      <h2>Reglamento</h2>
                       <ol>
-                        <li>El material debe ser entregado en las mismas condiciones...</li>
-                        <li>Si existe algún daño favor de reportarlo al momento del prestamo...</li>
-                        <li>El equipo deberá responder por cualquier daño o pérdida...</li>
-                        <li>Cualquier daño al equipo será responsabilidad del solicitante...</li>
-                        <li>El equipo debe ser devuelto en la misma fecha del préstamo...</li>
-                        <li>El equipo debe ser devuelto antes de las 21:00 horas...</li>
+                        <li>Entrega en mismas condiciones.</li>
+                        <li>Reportar daños de inmediato.</li>
+                        <li>Responsabilidad del solicitante.</li>
                       </ol>
                       <button type="button" className="modal-close-btn" onClick={() => setModalAbierto(false)}>
-                        Entendido y Cerrar
+                        Cerrar
                       </button>
                     </div>
                   </div>
