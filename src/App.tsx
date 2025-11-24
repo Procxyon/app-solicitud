@@ -11,17 +11,15 @@ interface Producto {
   nombre_equipo: string;
 }
 
-// Nueva interfaz para soportar items con y sin ID
 interface SolicitudItem {
-  tempId: string;        // ID único temporal para la lista visual
-  nombre_ui: string;     // Lo que escribió el usuario
+  tempId: string;        
+  nombre_ui: string;     
   cantidad: string;
-  producto_real?: Producto | null; // Objeto si coincidió con inventario, null si no
+  producto_real?: Producto | null; 
 }
-// --- Fin de Interfaces ---
 
 function App() {
-  // --- Estados ---
+  // --- Estados Generales ---
   const [todosLosProductos, setTodosLosProductos] = useState<Producto[]>([])
   
   // Estados del formulario
@@ -33,105 +31,96 @@ function App() {
   const [grupo, setGrupo] = useState('')
   const [nombreProfesor, setNombreProfesor] = useState('');
   
-  // Lista de items y Inputs temporales
+  // Lista de items
   const [listaSolicitud, setListaSolicitud] = useState<SolicitudItem[]>([])
   const [textoMaterial, setTextoMaterial] = useState('');
   const [cantidadInput, setCantidadInput] = useState('1');
   
   // Estados de UI
-  const [terminosUso, setUso] = useState(false)
-  const [modalAbierto, setModalAbierto] = useState(false)
   const [loading, setLoading] = useState(true)
   const [enviando, setEnviando] = useState(false)
-
   type Seccion = 'solicitante' | 'tipo' | 'equipo' | ''; 
   const [seccionAbierta, setSeccionAbierta] = useState<Seccion>('solicitante');
 
-  // --- Carga de Productos (Solo para validación interna, no se muestra lista) ---
+  // --- NUEVOS ESTADOS PARA EL MODAL DE CONFIRMACIÓN ---
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [checkReglamento, setCheckReglamento] = useState(false); // Checkbox dentro del modal
+
+  // --- Carga de Productos ---
   useEffect(() => {
     const fetchProductos = async () => {
       setLoading(true);
       try {
         const response = await fetch(`${API_URL}/api/inventario?public=true`);
         const data = await response.json();
-        if (Array.isArray(data)) {
-           setTodosLosProductos(data); 
-        }
-      } catch (error) { console.error('Error al cargar productos:', error); }
+        if (Array.isArray(data)) setTodosLosProductos(data); 
+      } catch (error) { console.error(error); }
       setLoading(false);
     }
     fetchProductos()
   }, [])
 
-  // --- Funciones de Manejo de Lista (NUEVA LÓGICA) ---
-  
-  // Buscar coincidencia exacta (Normalizando texto)
+  // --- Helpers de Lista ---
   const findExactMatch = (text: string): Producto | null => {
     if (!text) return null;
     const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    const target = normalize(text);
-    return todosLosProductos.find(p => normalize(p.nombre_equipo) === target) || null;
+    return todosLosProductos.find(p => normalize(p.nombre_equipo) === normalize(text)) || null;
   };
 
   const handleAddItem = () => {
     if (!textoMaterial.trim()) return;
-
-    // Buscamos si existe internamente para poner ✅ o ⚠️
     const coincidencia = findExactMatch(textoMaterial);
-
     const newItem: SolicitudItem = {
       tempId: crypto.randomUUID(),
       nombre_ui: textoMaterial,
       cantidad: cantidadInput === '' ? '1' : cantidadInput,
-      producto_real: coincidencia // null si no encontró (⚠️)
+      producto_real: coincidencia 
     };
-
     setListaSolicitud([...listaSolicitud, newItem]);
-    setTextoMaterial('');
-    setCantidadInput('1');
-    
-    // Feedback visual sutil
-    if(!coincidencia) {
-        toast('Artículo no registrado en inventario. Se agregará como texto libre.', { icon: '⚠️', duration: 3000 });
-    }
+    setTextoMaterial(''); setCantidadInput('1');
+    if(!coincidencia) toast('Artículo externo (se pedirá como texto libre).', { icon: 'ℹ️', duration: 2000 });
   };
 
   const handleRemoveItem = (tempId: string) => {
     setListaSolicitud(listaSolicitud.filter(item => item.tempId !== tempId))
   }
 
-  // --- FUNCIÓN DE ENVÍO ACTUALIZADA ---
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault() 
+  // --- PASO 1: PRE-VALIDACIÓN (Al dar click en "Continuar") ---
+  const handlePreSubmit = (e: FormEvent) => {
+    e.preventDefault();
     
-    // Validaciones
-    if (!terminosUso) { toast.error('Debes aceptar el reglamento.'); return; }
-    if (listaSolicitud.length === 0) { toast.error('Debes añadir al menos un equipo.'); return; }
-    if (!nombrePersona || !numeroControl) { toast.error('Completa Nombre y N° de Control.'); return; }
+    // 1. Validaciones básicas
+    if (listaSolicitud.length === 0) { toast.error('La lista está vacía.'); return; }
+    if (!nombrePersona || !numeroControl) { toast.error('Faltan datos del solicitante.'); setSeccionAbierta('solicitante'); return; }
     
-    // Validar cantidades positivas
+    // 2. Validar cantidades
     const itemsSinCantidad = listaSolicitud.filter(item => !item.cantidad || parseInt(item.cantidad) <= 0);
     if (itemsSinCantidad.length > 0) {
-        toast.error(`Introduce una cantidad válida para: ${itemsSinCantidad[0].nombre_ui}`);
+        toast.error(`Cantidad inválida para: ${itemsSinCantidad[0].nombre_ui}`);
         return;
     }
 
+    // 3. Validar datos de equipo
     if (tipo === 'EQUIPO' && (!integrantes || !nombreProfesor)) {
-        toast.error('Para solicitudes de EQUIPO, faltan datos obligatorios.');
+        toast.error('Faltan datos del Equipo (Profesor/Integrantes).');
+        setSeccionAbierta('tipo');
         return;
     }
-    
-    const prestamoCount = parseInt(localStorage.getItem('prestamoCount') || '0');
-    if (prestamoCount > 0 && prestamoCount % 5 === 0) {
-        const confirmReglas = window.confirm(`RECUERDA:\n1. Entrega en mismas condiciones.\n2. Daños son tu responsabilidad.\n3. Puntualidad.\n¿Aceptas?`);
-        if (!confirmReglas) { return; }
-    }
-    
+
+    // SI TODO ESTÁ BIEN -> ABRIMOS EL MODAL DE SEGURIDAD
+    setCheckReglamento(false); // Reseteamos el check
+    setShowConfirmModal(true);
+  };
+
+  // --- PASO 2: ENVÍO REAL (Al confirmar en el Modal) ---
+  const handleFinalSubmit = async () => {
+    if (!checkReglamento) return; // Doble seguridad
+
     setEnviando(true);
-    const loadingToast = toast.loading("Enviando solicitud..."); 
+    const loadingToast = toast.loading("Registrando solicitud..."); 
     const solicitud_id = crypto.randomUUID(); 
 
-    // Mapeo para enviar al Backend
+    // Mapeo de datos
     const solicitudes = listaSolicitud.map(item => {
       const cantidadNum = parseInt(item.cantidad) || 1;
       const tieneID = !!item.producto_real?.id;
@@ -140,10 +129,8 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // Si tiene ID, lo mandamos. Si no, mandamos null en ID y texto en nombre_extra
           producto_id: tieneID ? item.producto_real!.id : null, 
           nombre_extra: tieneID ? null : item.nombre_ui,
-
           nombre_persona: nombrePersona,
           numero_de_control: numeroControl, 
           integrantes: tipo === 'PERSONAL' ? 1 : parseInt(integrantes) || 1,
@@ -158,36 +145,27 @@ function App() {
 
     try {
       const responses = await Promise.all(solicitudes)
-      const algunaFallo = responses.some(res => !res.ok)
+      if (responses.some(res => !res.ok)) throw new Error('Error en el servidor al guardar items.');
+
+      toast.success(`¡Solicitud registrada correctamente!`, { id: loadingToast });
       
-      if (algunaFallo) {
-        const errorResponse = responses.find(res => !res.ok);
-        let errorMsg = 'Error al registrar';
-        if (errorResponse) {
-             const data = await errorResponse.json();
-             errorMsg = data.err || 'Error desconocido del servidor';
-        }
-        throw new Error(errorMsg);
-      }
-
-      toast.success(`¡Solicitud registrada con éxito!`, { id: loadingToast });
-      localStorage.setItem('prestamoCount', (prestamoCount + 1).toString());
-
+      // Limpieza
+      localStorage.setItem('prestamoCount', (parseInt(localStorage.getItem('prestamoCount') || '0') + 1).toString());
       setListaSolicitud([]); setNombrePersona(''); setNumeroControl(''); 
       setIntegrantes('1'); setMateria(''); setGrupo(''); setNombreProfesor('');
-      setTextoMaterial(''); setUso(false); setTipo('PERSONAL');
-      setSeccionAbierta('solicitante'); 
+      setTextoMaterial(''); setTipo('PERSONAL'); setSeccionAbierta('solicitante'); 
+      
+      setShowConfirmModal(false); // Cerramos modal
 
     } catch (error) {
       console.error(error)
-      if (error instanceof Error) toast.error(error.message, { id: loadingToast })
-      else toast.error('Error de conexión', { id: loadingToast })
+      toast.error('Ocurrió un error al intentar guardar.', { id: loadingToast })
     } finally {
       setEnviando(false)
     }
   }
 
-  // --- RENDERIZADO (JSX) ---
+  // --- RENDERIZADO ---
   return (
     <div className="App">
       <header>
@@ -198,144 +176,104 @@ function App() {
       {loading && <p>Cargando sistema...</p>}
 
       {!loading && (
-        <form onSubmit={handleSubmit} className="formulario-prestamo accordion">
+        // CAMBIO: onSubmit llama a handlePreSubmit (no envía todavía)
+        <form onSubmit={handlePreSubmit} className="formulario-prestamo accordion">
           
-          {/* --- SECCIÓN 1: SOLICITANTE --- */}
+          {/* ... SECCIÓN 1 (Igual que antes) ... */}
           <div className="accordion-item">
             <h3 className="accordion-header" onClick={() => setSeccionAbierta(seccionAbierta === 'solicitante' ? '' : 'solicitante')}>
-              1. Datos del Solicitante 
-              <span>{seccionAbierta === 'solicitante' ? '▲' : '▼'}</span>
+              1. Datos del Solicitante <span>{seccionAbierta === 'solicitante' ? '▲' : '▼'}</span>
             </h3>
             {seccionAbierta === 'solicitante' && (
               <div className="accordion-content">
                 <fieldset>
                   <div>
-                    <label htmlFor="nombre">Nombre Completo:</label>
-                    <input type="text" id="nombre" value={nombrePersona} onChange={(e) => setNombrePersona(e.target.value)} placeholder="Tu nombre completo" required />
+                    <label>Nombre Completo:</label>
+                    <input type="text" value={nombrePersona} onChange={(e) => setNombrePersona(e.target.value)} required />
                   </div>
                   <div>
-                    <label htmlFor="control">Número de Control:</label>
-                    <input type="text" id="control" inputMode="numeric" value={numeroControl} onChange={(e) => {if (/^\d*$/.test(e.target.value)) {setNumeroControl(e.target.value);}}} placeholder="Tu número de control" required />
+                    <label>Número de Control:</label>
+                    <input type="text" inputMode="numeric" value={numeroControl} onChange={(e) => {if (/^\d*$/.test(e.target.value)) setNumeroControl(e.target.value)}} required />
                   </div>
-                  <button type="button" className="next-btn" onClick={() => setSeccionAbierta('tipo')}>
-                    Siguiente ▼
-                  </button>
+                  <button type="button" className="next-btn" onClick={() => setSeccionAbierta('tipo')}>Siguiente ▼</button>
                 </fieldset>
               </div>
             )}
           </div>
 
-          {/* --- SECCIÓN 2: TIPO DE SOLICITUD --- */}
+          {/* ... SECCIÓN 2 (Igual que antes) ... */}
           <div className="accordion-item">
             <h3 className="accordion-header" onClick={() => setSeccionAbierta(seccionAbierta === 'tipo' ? '' : 'tipo')}>
-              2. Tipo de Solicitud
-              <span>{seccionAbierta === 'tipo' ? '▲' : '▼'}</span>
+              2. Tipo de Solicitud <span>{seccionAbierta === 'tipo' ? '▲' : '▼'}</span>
             </h3>
             {seccionAbierta === 'tipo' && (
-              <div className="accordion-content">
-                <fieldset>
-                  <div className="tipo-solicitud-selector">
-                    <label className={tipo === 'PERSONAL' ? 'active' : ''}>
-                      <input type="radio" name="tipo" value="PERSONAL" checked={tipo === 'PERSONAL'} onChange={(e) => setTipo(e.target.value as any)} />
-                      👤 PERSONAL
-                    </label>
-                    <label className={tipo === 'EQUIPO' ? 'active' : ''}>
-                      <input type="radio" name="tipo" value="EQUIPO" checked={tipo === 'EQUIPO'} onChange={(e) => setTipo(e.target.value as any)} />
-                      👥 EQUIPO
-                    </label>
-                  </div>
-                  
-                  <div className={`campos-equipo ${tipo === 'EQUIPO' ? 'visible' : ''}`}>
-                    <div className="form-group" style={{marginBottom: '15px'}}>
-                      <label htmlFor="nombreProfesor">Nombre del Profesor:</label>
-                      <input type="text" id="nombreProfesor" value={nombreProfesor} onChange={(e) => setNombreProfesor(e.target.value)} disabled={tipo === 'PERSONAL'} />
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label htmlFor="integrantes">Integrantes:</label>                        
-                        <input 
-                          type="number" id="integrantes" min="1" max="5"
-                          value={integrantes}
-                          onChange={(e) => setIntegrantes(e.target.value)}
-                          disabled={tipo === 'PERSONAL'} 
-                        />
-                        </div>
-                      <div className="form-group">
-                        <label htmlFor="materia">Materia:</label>
-                        <input type="text" id="materia" value={materia} onChange={(e) => setMateria(e.target.value)} disabled={tipo === 'PERSONAL'} />
-                      </div>
-                      <div className="form-group">
-                        <label htmlFor="grupo">Grupo:</label>
-                        <input type="text" id="grupo" value={grupo} onChange={(e) => setGrupo(e.target.value)} disabled={tipo === 'PERSONAL'} />
-                      </div>
-                    </div>
-                  </div>
-                  <button type="button" className="next-btn" onClick={() => setSeccionAbierta('equipo')}>
-                    Siguiente ▼
-                  </button>
-                </fieldset>
-              </div>
+               <div className="accordion-content">
+               <fieldset>
+                 <div className="tipo-solicitud-selector">
+                   <label className={tipo === 'PERSONAL' ? 'active' : ''}>
+                     <input type="radio" name="tipo" value="PERSONAL" checked={tipo === 'PERSONAL'} onChange={(e) => setTipo(e.target.value as any)} />
+                     👤 PERSONAL
+                   </label>
+                   <label className={tipo === 'EQUIPO' ? 'active' : ''}>
+                     <input type="radio" name="tipo" value="EQUIPO" checked={tipo === 'EQUIPO'} onChange={(e) => setTipo(e.target.value as any)} />
+                     👥 EQUIPO
+                   </label>
+                 </div>
+                 
+                 <div className={`campos-equipo ${tipo === 'EQUIPO' ? 'visible' : ''}`}>
+                   <div className="form-group" style={{marginBottom: '15px'}}>
+                     <label>Nombre del Profesor:</label>
+                     <input type="text" value={nombreProfesor} onChange={(e) => setNombreProfesor(e.target.value)} disabled={tipo === 'PERSONAL'} />
+                   </div>
+                   <div className="form-row">
+                     <div className="form-group">
+                       <label>Integrantes:</label>                        
+                       <input type="number" min="1" max="5" value={integrantes} onChange={(e) => setIntegrantes(e.target.value)} disabled={tipo === 'PERSONAL'} />
+                       </div>
+                     <div className="form-group">
+                       <label>Materia:</label>
+                       <input type="text" value={materia} onChange={(e) => setMateria(e.target.value)} disabled={tipo === 'PERSONAL'} />
+                     </div>
+                     <div className="form-group">
+                       <label>Grupo:</label>
+                       <input type="text" value={grupo} onChange={(e) => setGrupo(e.target.value)} disabled={tipo === 'PERSONAL'} />
+                     </div>
+                   </div>
+                 </div>
+                 <button type="button" className="next-btn" onClick={() => setSeccionAbierta('equipo')}>Siguiente ▼</button>
+               </fieldset>
+             </div>
             )}
           </div>
 
-          {/* --- SECCIÓN 3: EQUIPOS Y MATERIAL (MODIFICADO) --- */}
+          {/* ... SECCIÓN 3 (Sin el check de términos aquí, solo lista) ... */}
           <div className="accordion-item">
             <h3 className="accordion-header" onClick={() => setSeccionAbierta(seccionAbierta === 'equipo' ? '' : 'equipo')}>
-              3. Equipos y Material
-              <span>{seccionAbierta === 'equipo' ? '▲' : '▼'}</span>
+              3. Equipos y Material <span>{seccionAbierta === 'equipo' ? '▲' : '▼'}</span>
             </h3>
             {seccionAbierta === 'equipo' && (
               <div className="accordion-content">
                 <fieldset>
-                  <label htmlFor="materialInput">Agregar Material:</label>
-                  
-                  {/* BARRA DE ENTRADA HORIZONTAL */}
+                  <label>Agregar Material:</label>
                   <div className="add-item-row">
-                    <input 
-                        type="text" 
-                        className="input-material"
-                        id="materialInput"
-                        value={textoMaterial}
-                        onChange={(e) => setTextoMaterial(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(); } }}
-                        placeholder="Ej. Arduino, Caimanes..." 
-                    />
-                    <input 
-                        type="number" 
-                        className="input-cantidad"
-                        value={cantidadInput}
-                        onChange={(e) => setCantidadInput(e.target.value)}
-                        placeholder="Cant."
-                        min="1"
-                    />
+                    <input type="text" className="input-material" value={textoMaterial} onChange={(e) => setTextoMaterial(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(); } }} placeholder="Ej. Arduino..." />
+                    <input type="number" className="input-cantidad" value={cantidadInput} onChange={(e) => setCantidadInput(e.target.value)} min="1" />
                     <button type="button" onClick={handleAddItem} className="btn-add">+</button>
                   </div>
                   
                   <div className="lista-solicitud">
                     <h4>Carrito de Solicitud:</h4>
-                    {listaSolicitud.length === 0 ? (
-                      <p style={{fontSize:'0.9em', color:'#aaa'}}>Lista vacía.</p>
-                    ) : (
+                    {listaSolicitud.length === 0 ? <p style={{fontSize:'0.9em', color:'#aaa'}}>Lista vacía.</p> : (
                       <ul className="solicitud-items-list">
                         {listaSolicitud.map((item) => (
                           <li key={item.tempId} className="solicitud-item">
-                            <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                                {/* ICONO DE ESTADO */}
-                                <div className="item-status">
-                                    {item.producto_real ? (
-                                        <span title="OK: Encontrado en inventario">✅</span>
-                                    ) : (
-                                        <span title="Advertencia: No coincide con inventario (Se pedirá como extra)" style={{fontSize:'1.2em'}}>⚠️</span>
-                                    )}
-                                </div>
+                             <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                                <div className="item-status">{item.producto_real ? '✅' : '⚠️'}</div>
                                 <span className="item-name">{item.nombre_ui}</span>
                             </div>
-                            
                             <div className="item-controls">
                                 <span style={{color:'#ccc', marginRight:'10px'}}>x {item.cantidad}</span>
-                                <button type="button" onClick={() => handleRemoveItem(item.tempId)} className="remove-btn">
-                                    X
-                                </button>
+                                <button type="button" onClick={() => handleRemoveItem(item.tempId)} className="remove-btn">X</button>
                             </div>
                           </li>
                         ))}
@@ -344,40 +282,67 @@ function App() {
                   </div>
                 </fieldset>
 
-                {/* --- TÉRMINOS Y ENVÍO --- */}
-                <div className="terminos-container" style={{marginTop:'20px'}}>
-                  <input type="checkbox" id="Uso" checked={terminosUso} onChange={(e) => setUso(e.target.checked)} required />
-                  <label htmlFor="Uso"> 
-                    <span className="link-reglamento" onClick={(e) => { e.preventDefault(); setModalAbierto(true); }}>
-                      Acepto el reglamento
-                    </span>
-                  </label>
-                </div>
-                
-                {modalAbierto && (
-                  <div className="modal-overlay" onClick={() => setModalAbierto(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                      <h2>Reglamento</h2>
-                      <ol>
-                        <li>Entrega en mismas condiciones.</li>
-                        <li>Reportar daños de inmediato.</li>
-                        <li>Responsabilidad del solicitante.</li>
-                      </ol>
-                      <button type="button" className="modal-close-btn" onClick={() => setModalAbierto(false)}>
-                        Cerrar
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <button type="submit" disabled={enviando || loading} className="submit-btn" style={{marginTop: '20px'}}>
-                  {enviando ? 'Enviando...' : 'Enviar Solicitud'}
+                {/* BOTÓN INICIAL: Solo dice "Continuar" o "Revisar" */}
+                <button type="submit" disabled={enviando || loading} className="submit-btn" style={{marginTop: '20px', background:'#007bff'}}>
+                  Continuar y Revisar
                 </button>
               </div>
             )}
           </div>
         </form>
       )}
+
+      {/* --- MODAL DE CONFIRMACIÓN (EL "NO SOY ROBOT") --- */}
+      {showConfirmModal && (
+        <div className="modal-overlay">
+            <div className="modal-content confirm-modal">
+                <h2 style={{color: '#ffc107', textAlign:'center'}}>⚠️ Confirmación Requerida</h2>
+                
+                <p style={{textAlign:'center', marginBottom:'20px'}}>
+                    Para finalizar tu solicitud, es <b>obligatorio</b> que confirmes la lectura del reglamento.
+                </p>
+
+                <div className="security-check-box">
+                    <label className="checkbox-container">
+                        <input 
+                            type="checkbox" 
+                            checked={checkReglamento} 
+                            onChange={(e) => setCheckReglamento(e.target.checked)} 
+                        />
+                        <span className="checkmark"></span>
+                        <span className="check-text">
+                            He leído y acepto el{' '}
+                            <a 
+                                href="PEGAR_AQUI_TU_ENLACE_DE_DRIVE" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                style={{color:'#00aaff', textDecoration:'underline'}}
+                            >
+                                reglamento de préstamos
+                            </a>
+                            . <br/>
+                            <small style={{color:'#aaa'}}>(Entiendo que soy responsable por daños o pérdidas)</small>
+                        </span>
+                    </label>
+                </div>
+
+                <div className="modal-actions">
+                    <button type="button" className="btn-cancel" onClick={() => setShowConfirmModal(false)}>
+                        Volver
+                    </button>
+                    <button 
+                        type="button" 
+                        className="btn-confirm" 
+                        disabled={!checkReglamento || enviando} 
+                        onClick={handleFinalSubmit}
+                    >
+                        {enviando ? 'Enviando...' : 'FINALIZAR SOLICITUD'}
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   )
 }
