@@ -268,7 +268,7 @@ function App() {
                         {listaSolicitud.map((item) => (
                           <li key={item.tempId} className="solicitud-item">
                              <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                                <div className="item-status">{item.producto_real ? '✅' : '⚠️'}</div>
+                                <div className="item-status">{item.producto_real ? '' : ''}</div>
                                 <span className="item-name">{item.nombre_ui}</span>
                             </div>
                             <div className="item-controls">
@@ -313,7 +313,7 @@ function App() {
                         <span className="check-text">
                             He leído y acepto el{' '}
                             <a 
-                                href="PEGAR_AQUI_TU_ENLACE_DE_DRIVE" 
+                                href="https://drive.google.com/file/d/1OCUVDEnXPbmn95uU_0uhlqOBoVvIMyKY/view" 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 style={{color:'#00aaff', textDecoration:'underline'}}
